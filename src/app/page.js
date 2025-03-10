@@ -1,101 +1,156 @@
-import Image from "next/image";
+"use client";
+import axios from 'axios';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function Home() {
+const GetProduct = () => {
+  const [products, setProducts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allCategories, setAllCategories] = useState([]);
+  const [openCategory, setOpenCategory] = useState(null); // Track open category dropdowns
+  const router = useRouter();
+
+  const fetchProduct = async () => {
+    try {
+      const response = await axios.get('http://localhost:5005/api/customerproductslist');
+      if (Array.isArray(response.data.getproduct)) {
+        setProducts(response.data.getproduct);
+        const categories = [...new Set(response.data.getproduct.map(product => product.category))];
+        setAllCategories(categories);
+      } else {
+        console.error("Expected an array in 'getproduct' but got:", response.data.getproduct);
+      }
+    } catch (err) {
+      console.error("Error fetching products:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProduct();
+  }, []);
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleCategoryClick = (category) => {
+    router.push(`/customer/customervisit?category=${category}`);
+  };
+
+  const toggleCategory = (category) => {
+    if (openCategory === category) {
+      setOpenCategory(null); // Close dropdown if already open
+    } else {
+      setOpenCategory(category); // Open dropdown for selected category
+    }
+  };
+
+  const groupedProducts = () => {
+    return products.reduce((acc, product) => {
+      if (!acc[product.category]) {
+        acc[product.category] = [];
+      }
+      acc[product.category].push(product);
+      return acc;
+    }, {});
+  };
+
+  const groupedProductsData = groupedProducts();
+
+  const filteredProducts = products.filter(product => 
+    product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div>
+      <div className="ml-80 mr-20 mt-20">
+        <h1 className="pl-40 bg-amber-500 text-5xl">Welcome to the loyalty product site.</h1>
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <div className="ml-80 mt-8">
+      <input
+          type="text"
+          value={searchQuery}
+          onChange={handleSearchChange}
+          placeholder="Search categories or products..."
+          className="border-2 border-gray-300 p-2 rounded-md"
+        />
+        
+        {searchQuery && (
+          <ul>
+            {allCategories.filter(category => category.toLowerCase().includes(searchQuery.toLowerCase())).map((category, index) => (
+              <li key={index} 
+                  className="cursor-pointer text-blue-500 hover:underline"
+                  onClick={() => handleCategoryClick(category)}>
+                {category}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="flex flex-row">
+        <div className="flex w-6xl">
+          <div className="w-1/4 p-6 mt-10 bg-amber-100 rounded-lg shadow-md">
+            <h2 className="font-bold text-xl mb-4">Categories</h2>
+            <div className="space-y-4">
+              {Object.keys(groupedProductsData).map((category, index) => (
+                <div key={index} className="cursor-pointer">
+                  <button
+                    className="w-full text-left bg-amber-200 p-2 rounded-md mb-2 hover:bg-amber-300 flex items-center justify-between"
+                    onClick={() => toggleCategory(category)}
+                  >
+                    {category} 
+                    <span
+                      className={`transform transition-transform ${openCategory === category ? 'rotate-180' : ''}`}
+                    >
+                      ▼
+                    </span>
+                  </button>
+
+                  {/* Dropdown for each category */}
+                  {openCategory === category && (
+                    <div className="bg-gray-100 border rounded-lg p-2 space-y-2">
+                      {groupedProductsData[category].map((product, productIndex) => (
+                        <div
+                          key={productIndex}
+                          className="cursor-pointer border-2 border-solid border-gray-300 rounded-md p-2 hover:scale-105"
+                          onClick={() => handleCategoryClick(category)}
+                        >
+                          <p className="font-semibold">{product.title}</p>
+                          <p>₹{product.price.toLocaleString()} /piece</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="flex flex-wrap w-3/4 mt-10 ml-4">
+          {filteredProducts.map(product => (
+            <div
+              key={product._id}
+              className="w-48 h-64 m-2 bg-gray-500 border-2 border-gray-300 rounded-lg shadow-lg"
+            >
+              <img
+                src={`http://localhost:5005/api/uploads/${product.productimage}`}
+                alt={product.title}
+                className="h-44 object-cover rounded-md mb-3"
+              />
+              <h2 className="font-semibold text-lg pl-2">{product.title}</h2>
+              <p className="text-xl pl-2 font-semibold text-gray-800">
+                ₹{product.price.toLocaleString()} <span className="text-gray-500">/piece</span>
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default GetProduct;
