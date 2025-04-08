@@ -24,6 +24,7 @@ const ProductRequest = () => {
     Motorpower: "",
     supplyfrequency: "",
     DiscreteoutputNo: "",
+    productimage: "", // Added for image upload
   });
 
   const [errorMessage, setErrorMessage] = useState("");
@@ -42,18 +43,20 @@ const ProductRequest = () => {
       return;
     }
 
-    
-
     try {
-      
+      const formData = new FormData();
+      for (const key in product) {
+        formData.append(key, product[key]);
+      }
+
       const response = await axios.post(
         "http://localhost:5005/api/productdetails",
-        product,
+        formData,
         {
           headers: {
             "Content-Type": "multipart/form-data",
           },
-          withCredentials: true, 
+          withCredentials: true,
         }
       );
       console.log(response.data);
@@ -79,6 +82,7 @@ const ProductRequest = () => {
         Motorpower: "",
         supplyfrequency: "",
         DiscreteoutputNo: "",
+        productimage: "", // Reset image field
       });
     } catch (err) {
       console.log("Error submitting productdetails:", err);
@@ -107,161 +111,240 @@ const ProductRequest = () => {
   };
 
   return (
-    <div>
-      <form onSubmit={handleSubmit}>
-        <label>PRODUCT NAME:</label>
-        <input
-          name="title"
-          value={product.title}
-          placeholder="Enter product name"
-          onChange={handleChange}
-        />
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-100 to-green-300">
+      <div className="w-full max-w-4xl p-6 sm:p-8 space-y-6 bg-white rounded-xl shadow-2xl">
+        <h1 className="text-3xl sm:text-4xl font-bold text-center text-green-600">Product Request</h1>
+        <form onSubmit={handleSubmit}>
+          {errorMessage && <div className="text-red-600 text-center">{errorMessage}</div>}
 
-        <label>PRODUCT DETAILS:</label>
-        <input
-          type="textarea"
-          name="description"
-          value={product.description}
-          placeholder="Enter product details"
-          onChange={handleChange}
-        />
+          {/* Product fields */}
+          <div className="flex flex-col space-y-4">
+            <div>
+              <label className="text-lg font-medium text-gray-700">PRODUCT NAME:</label>
+              <input
+                name="title"
+                value={product.title}
+                placeholder="Enter product name"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>PRODUCT PRICE:</label>
-        <input
-          name="price"
-          value={product.price}
-          placeholder="Enter product price"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">PRODUCT DETAILS:</label>
+              <textarea
+                name="description"
+                value={product.description}
+                placeholder="Enter product details"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 h-32 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>PRODUCT CATEGORY:</label>
-        <input
-          name="category"
-          value={product.category}
-          placeholder="Enter product category"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">PRODUCT PRICE:</label>
+              <input
+                name="price"
+                value={product.price}
+                placeholder="Enter product price"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>PRODUCT BROCHURE:</label>
-        <input
-          name="ProductBroucher"
-          type="file"
-          onChange={handleFileChange}
-        />
-          <label>PRODUCT IMAGE:</label>
-        <input
-          name="productimage"
-          type="file"
-          onChange={handleFileChange}
-        />
-        <label>BRAND:</label>
-        <input
-          name="Brand"
-          value={product.Brand}
-          placeholder="Enter product brand"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">PRODUCT CATEGORY:</label>
+              <input
+                name="category"
+                value={product.category}
+                placeholder="Enter product category"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>USAGE:</label>
-        <input
-          name="Usage"
-          value={product.Usage}
-          placeholder="Enter product usage"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">PRODUCT BROCHURE:</label>
+              <input
+                name="ProductBroucher"
+                type="file"
+                onChange={handleFileChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>INPUT PHASE:</label>
-        <input
-          name="inputPhase"
-          value={product.inputPhase}
-          placeholder="Enter input phase"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">PRODUCT IMAGE:</label>
+              <input
+                name="productimage"
+                type="file"
+                onChange={handleFileChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>INPUT VOLTAGE:</label>
-        <input
-          name="inputvoltage"
-          value={product.inputvoltage}
-          placeholder="Enter input voltage"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">PRODUCT VIDEO:</label>
+              <input
+                name="Productvideo"
+                type="file"
+                onChange={handleFileChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>MODEL NUMBER:</label>
-        <input
-          name="ModelNumber"
-          value={product.ModelNumber}
-          placeholder="Enter model number"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">BRAND:</label>
+              <input
+                name="Brand"
+                value={product.Brand}
+                placeholder="Enter product brand"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>MOTOR RPM:</label>
-        <input
-          name="MotorRPM"
-          value={product.MotorRPM}
-          placeholder="Enter motor RPM"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">USAGE:</label>
+              <input
+                name="Usage"
+                value={product.Usage}
+                placeholder="Enter product usage"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>MAXIMUM TRANSCURRENT:</label>
-        <input
-          name="MaximumTarancientcurrent"
-          value={product.MaximumTarancientcurrent}
-          placeholder="Enter maximum current"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">INPUT PHASE:</label>
+              <input
+                name="inputPhase"
+                value={product.inputPhase}
+                placeholder="Enter input phase"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>EMC FILTER:</label>
-        <input
-          name="Emcfilter"
-          value={product.Emcfilter}
-          placeholder="Enter EMC filter"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">INPUT VOLTAGE:</label>
+              <input
+                name="inputvoltage"
+                value={product.inputvoltage}
+                placeholder="Enter input voltage"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>WIDTH:</label>
-        <input
-          name="Width"
-          value={product.Width}
-          placeholder="Enter width"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">MODEL NUMBER:</label>
+              <input
+                name="ModelNumber"
+                value={product.ModelNumber}
+                placeholder="Enter model number"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>TRANSMISSION FRAME:</label>
-        <input
-          name="Transmissionframe"
-          value={product.Transmissionframe}
-          placeholder="Enter transmission frame"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">MOTOR RPM:</label>
+              <input
+                name="MotorRPM"
+                value={product.MotorRPM}
+                placeholder="Enter motor RPM"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>MOTOR POWER:</label>
-        <input
-          name="Motorpower"
-          value={product.Motorpower}
-          placeholder="Enter motor power"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">MAXIMUM CURRENT:</label>
+              <input
+                name="MaximumTarancientcurrent"
+                value={product.MaximumTarancientcurrent}
+                placeholder="Enter maximum current"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>SUPPLY FREQUENCY:</label>
-        <input
-          name="supplyfrequency"
-          value={product.supplyfrequency}
-          placeholder="Enter supply frequency"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">EMC FILTER:</label>
+              <input
+                name="Emcfilter"
+                value={product.Emcfilter}
+                placeholder="Enter EMC filter"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <label>DISCRETE OUTPUT NUMBER:</label>
-        <input
-          name="DiscreteoutputNo"
-          value={product.DiscreteoutputNo}
-          placeholder="Enter discrete output number"
-          onChange={handleChange}
-        />
+            <div>
+              <label className="text-lg font-medium text-gray-700">WIDTH:</label>
+              <input
+                name="Width"
+                value={product.Width}
+                placeholder="Enter width"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        <button type="submit">Submit</button>
+            <div>
+              <label className="text-lg font-medium text-gray-700">TRANSMISSION FRAME:</label>
+              <input
+                name="Transmissionframe"
+                value={product.Transmissionframe}
+                placeholder="Enter transmission frame"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
 
-        {errorMessage && <div>{errorMessage}</div>}
-      </form>
+            <div>
+              <label className="text-lg font-medium text-gray-700">MOTOR POWER:</label>
+              <input
+                name="Motorpower"
+                value={product.Motorpower}
+                placeholder="Enter motor power"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
+
+            <div>
+              <label className="text-lg font-medium text-gray-700">SUPPLY FREQUENCY:</label>
+              <input
+                name="supplyfrequency"
+                value={product.supplyfrequency}
+                placeholder="Enter supply frequency"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
+
+            <div>
+              <label className="text-lg font-medium text-gray-700">DISCRETE OUTPUT NUMBER:</label>
+              <input
+                name="DiscreteoutputNo"
+                value={product.DiscreteoutputNo}
+                placeholder="Enter discrete output number"
+                onChange={handleChange}
+                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 text-white bg-green-600 rounded-lg hover:bg-green-700 transition duration-300 ease-in-out transform hover:scale-105"
+            >
+              Submit
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
