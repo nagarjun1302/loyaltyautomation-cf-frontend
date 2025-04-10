@@ -330,11 +330,11 @@ const GetProduct = () => {
 
           {/* All Products Section */}
           <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">
+            <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text ">
               All Products
             </h2>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 ">
               {products.map((product) => (
                 <div
                   key={product._id}
@@ -354,20 +354,22 @@ const GetProduct = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="p-4">
-                    <div className="flex justify-between mb-2">
-                      <h3 className="font-medium text-lg line-clamp-1">{product.title}</h3>
-                      <span className="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs">
-                        {product.category}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <p className="text-lg font-bold text-blue-600">
-                        ₹{product.price.toLocaleString()}
-                      </p>
-                      <button className="text-sm px-3 py-1 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
-                        View
-                      </button>
+                  <div className="p-5"> {/* Increased padding from p-4 to p-5 */}
+          <div className="flex justify-between mb-3"> {/* Increased margin-bottom */}
+            <h3 className="font-medium text-l"> {/* Increased font size from text-lg and removed line-clamp-1 */}
+              {product.title}
+            </h3>
+            <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
+              {product.category}
+            </span>
+          </div>
+          <div className="flex justify-between items-center mt-2"> {/* Added margin-top */}
+            <p className="text-lg font-bold text-blue-600">
+              ₹{product.price.toLocaleString()}
+            </p>
+            <button className="text-sm px-3 py-1 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+              View
+            </button>
                     </div>
                   </div>
                 </div>
