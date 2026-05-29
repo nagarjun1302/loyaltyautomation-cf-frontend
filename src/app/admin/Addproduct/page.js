@@ -1,352 +1,319 @@
 "use client";
 
-import { useState } from "react";
 import axios from "axios";
+import { Check, ChevronsUpDown, ImagePlus, Plus, Search, Trash2, UploadCloud, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import AdminShell from "../../components/AdminShell";
+import { API_BASE } from "../../lib/catalog";
 
-const ProductRequest = () => {
-  const [product, setProduct] = useState({
-    title: "",
-    description: "",
-    price: "",
-    category: "",
-    ProductBroucher: "",
-    Productvideo: "",
-    Brand: "",
-    Usage: "",
-    inputPhase: "",
-    inputvoltage: "",
-    ModelNumber: "",
-    MotorRPM: "",
-    MaximumTarancientcurrent: "",
-    Emcfilter: "",
-    Width: "",
-    Transmissionframe: "",
-    Motorpower: "",
-    supplyfrequency: "",
-    DiscreteoutputNo: "",
-    productimage: "", // Added for image upload
-  });
+const initialProduct = {
+  title: "",
+  description: "",
+  price: "",
+  category: "",
+  ProductBroucher: "",
+  Productvideo: "",
+  Brand: "",
+  Usage: "",
+  inputPhase: "",
+  inputvoltage: "",
+  ModelNumber: "",
+  MotorRPM: "",
+  MaximumTarancientcurrent: "",
+  Emcfilter: "",
+  Width: "",
+  Transmissionframe: "",
+  Motorpower: "",
+  supplyfrequency: "",
+  DiscreteoutputNo: "",
+  productimage: [],
+  specifications: [],
+};
 
+const legacyFields = [
+  ["title", "Product Name", "text", true],
+  ["price", "Price", "number", true],
+  ["Productvideo", "Product Video URL", "url"],
+  ["Usage", "Usage"],
+  ["inputPhase", "Input Phase"],
+  ["inputvoltage", "Input Voltage"],
+  ["ModelNumber", "Model Number"],
+  ["MotorRPM", "Motor RPM"],
+  ["MaximumTarancientcurrent", "Maximum Current"],
+  ["Emcfilter", "EMC Filter"],
+  ["Width", "Width"],
+  ["Transmissionframe", "Transmission Frame"],
+  ["Motorpower", "Motor Power"],
+  ["supplyfrequency", "Supply Frequency"],
+  ["DiscreteoutputNo", "Discrete Output Number"],
+];
+
+export default function AddProductPage() {
+  const [product, setProduct] = useState(initialProduct);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [brochureName, setBrochureName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [optionsLoading, setOptionsLoading] = useState(true);
+  const [optionsError, setOptionsError] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    const loadOptions = async () => {
+      setOptionsLoading(true);
+      setOptionsError("");
+      try {
+        const [categoryResponse, brandResponse] = await Promise.all([
+          axios.get(`${API_BASE}/api/catalog-options/category`),
+          axios.get(`${API_BASE}/api/catalog-options/brand`),
+        ]);
+        setCategories(Array.isArray(categoryResponse.data.options) ? categoryResponse.data.options : []);
+        setBrands(Array.isArray(brandResponse.data.options) ? brandResponse.data.options : []);
+      } catch (error) {
+        console.error("Catalog option API failed:", {
+          status: error.response?.status,
+          message: error.response?.data?.message || error.message,
+          data: error.response?.data,
+        });
+        setOptionsError(error.response?.data?.message || "Unable to load categories and brands. You can retry or refresh.");
+      } finally {
+        setOptionsLoading(false);
+      }
+    };
 
-    if (
-      !product.title ||
-      !product.description ||
-      !product.price ||
-      !product.category ||
-      !product.ProductBroucher
-    ) {
-      setErrorMessage("Please fill in all required fields.");
+    loadOptions();
+
+  }, []);
+
+  const updateProduct = (key, value) => setProduct((current) => ({ ...current, [key]: value }));
+
+  const handleImages = (event) => {
+    const files = Array.from(event.target.files || []);
+    const nextFiles = [...product.productimage, ...files].slice(0, 10);
+    const nextPreviews = [
+      ...imagePreviews,
+      ...files.map((file) => ({ name: file.name, url: URL.createObjectURL(file) })),
+    ].slice(0, 10);
+
+    setProduct((current) => ({ ...current, productimage: nextFiles }));
+    setImagePreviews(nextPreviews);
+    event.target.value = "";
+  };
+
+  const removeImage = (index) => {
+    URL.revokeObjectURL(imagePreviews[index]?.url);
+    setProduct((current) => ({ ...current, productimage: current.productimage.filter((_, imageIndex) => imageIndex !== index) }));
+    setImagePreviews((current) => current.filter((_, imageIndex) => imageIndex !== index));
+  };
+
+  const handleBrochure = (event) => {
+    const file = event.target.files?.[0] || "";
+    setProduct((current) => ({ ...current, ProductBroucher: file }));
+    setBrochureName(file?.name || "");
+  };
+
+  const resetForm = () => {
+    imagePreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
+    setProduct(initialProduct);
+    setImagePreviews([]);
+    setBrochureName("");
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setStatusMessage("");
+
+    if (!product.title || !product.description || !product.price || !product.category || product.productimage.length === 0 || !product.ProductBroucher) {
+      setErrorMessage("Please fill product name, details, price, category, at least one image and brochure.");
       return;
     }
 
+    setSubmitting(true);
+    setErrorMessage("");
     try {
       const formData = new FormData();
-      for (const key in product) {
-        formData.append(key, product[key]);
-      }
-
-      const response = await axios.post(
-        "http://localhost:5005/api/productdetails",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-          withCredentials: true,
+      Object.entries(product).forEach(([key, value]) => {
+        if (key === "productimage") {
+          value.forEach((file) => formData.append("productimage", file));
+        } else if (key === "specifications") {
+          formData.append("specifications", JSON.stringify(value));
+        } else if (value !== "") {
+          formData.append(key, value);
         }
-      );
-      console.log(response.data);
-      alert("Lead entry successfully submitted");
-
-      setProduct({
-        title: "",
-        description: "",
-        price: "",
-        category: "",
-        ProductBroucher: "",
-        Productvideo: "",
-        Brand: "",
-        Usage: "",
-        inputPhase: "",
-        inputvoltage: "",
-        ModelNumber: "",
-        MotorRPM: "",
-        MaximumTarancientcurrent: "",
-        Emcfilter: "",
-        Width: "",
-        Transmissionframe: "",
-        Motorpower: "",
-        supplyfrequency: "",
-        DiscreteoutputNo: "",
-        productimage: "", // Reset image field
       });
-    } catch (err) {
-      console.log("Error submitting productdetails:", err);
-      if (err.response) {
-        alert(`Error: ${err.response.data.message}`);
-      } else {
-        alert("Something went wrong, please try again later.");
-      }
+
+      await axios.post(`${API_BASE}/api/productdetails`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        withCredentials: true,
+      });
+      setStatusMessage("Product submitted successfully.");
+      resetForm();
+    } catch (error) {
+      console.error("Error submitting product details:", {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        data: error.response?.data,
+      });
+      setErrorMessage(error.response?.data?.message || "Something went wrong while saving the product.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setProduct({
-      ...product,
-      [name]: value,
-    });
-  };
-
-  const handleFileChange = (e) => {
-    const { name, files } = e.target;
-    setProduct({
-      ...product,
-      [name]: files[0], // Store the first selected file
-    });
-  };
-
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-100 to-green-300">
-      <div className="w-full max-w-4xl p-6 sm:p-8 space-y-6 bg-white rounded-xl shadow-2xl">
-        <h1 className="text-3xl sm:text-4xl font-bold text-center text-green-600">Product Request</h1>
-        <form onSubmit={handleSubmit}>
-          {errorMessage && <div className="text-red-600 text-center">{errorMessage}</div>}
-
-          {/* Product fields */}
-          <div className="flex flex-col space-y-4">
-            <div>
-              <label className="text-lg font-medium text-gray-700">PRODUCT NAME:</label>
-              <input
-                name="title"
-                value={product.title}
-                placeholder="Enter product name"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">PRODUCT DETAILS:</label>
-              <textarea
-                name="description"
-                value={product.description}
-                placeholder="Enter product details"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 h-32 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">PRODUCT PRICE:</label>
-              <input
-                name="price"
-                value={product.price}
-                placeholder="Enter product price"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">PRODUCT CATEGORY:</label>
-              <input
-                name="category"
-                value={product.category}
-                placeholder="Enter product category"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">PRODUCT BROCHURE:</label>
-              <input
-                name="ProductBroucher"
-                type="file"
-                onChange={handleFileChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">PRODUCT IMAGE:</label>
-              <input
-                name="productimage"
-                type="file"
-                onChange={handleFileChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">PRODUCT VIDEO:</label>
-              <input
-                name="Productvideo"
-                type="file"
-                onChange={handleFileChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">BRAND:</label>
-              <input
-                name="Brand"
-                value={product.Brand}
-                placeholder="Enter product brand"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">USAGE:</label>
-              <input
-                name="Usage"
-                value={product.Usage}
-                placeholder="Enter product usage"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">INPUT PHASE:</label>
-              <input
-                name="inputPhase"
-                value={product.inputPhase}
-                placeholder="Enter input phase"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">INPUT VOLTAGE:</label>
-              <input
-                name="inputvoltage"
-                value={product.inputvoltage}
-                placeholder="Enter input voltage"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">MODEL NUMBER:</label>
-              <input
-                name="ModelNumber"
-                value={product.ModelNumber}
-                placeholder="Enter model number"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">MOTOR RPM:</label>
-              <input
-                name="MotorRPM"
-                value={product.MotorRPM}
-                placeholder="Enter motor RPM"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">MAXIMUM CURRENT:</label>
-              <input
-                name="MaximumTarancientcurrent"
-                value={product.MaximumTarancientcurrent}
-                placeholder="Enter maximum current"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">EMC FILTER:</label>
-              <input
-                name="Emcfilter"
-                value={product.Emcfilter}
-                placeholder="Enter EMC filter"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">WIDTH:</label>
-              <input
-                name="Width"
-                value={product.Width}
-                placeholder="Enter width"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">TRANSMISSION FRAME:</label>
-              <input
-                name="Transmissionframe"
-                value={product.Transmissionframe}
-                placeholder="Enter transmission frame"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">MOTOR POWER:</label>
-              <input
-                name="Motorpower"
-                value={product.Motorpower}
-                placeholder="Enter motor power"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">SUPPLY FREQUENCY:</label>
-              <input
-                name="supplyfrequency"
-                value={product.supplyfrequency}
-                placeholder="Enter supply frequency"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-lg font-medium text-gray-700">DISCRETE OUTPUT NUMBER:</label>
-              <input
-                name="DiscreteoutputNo"
-                value={product.DiscreteoutputNo}
-                placeholder="Enter discrete output number"
-                onChange={handleChange}
-                className="border p-2 rounded-md mt-1 focus:outline-none focus:ring-2 focus:ring-green-400 w-full"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 text-white bg-green-600 rounded-lg hover:bg-green-700 transition duration-300 ease-in-out transform hover:scale-105"
-            >
-              Submit
-            </button>
+    <AdminShell title="Add Product" subtitle="Create catalog products with galleries, brochure, video and dynamic specs.">
+      <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1fr_390px]">
+        <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-xl font-black text-slate-950">Product Information</h2>
+            <p className="mt-1 text-sm text-slate-500">Legacy fields remain compatible, and custom specifications are stored dynamically.</p>
           </div>
-        </form>
-      </div>
+
+          {optionsLoading && <div className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">Loading categories and brands...</div>}
+          {optionsError && <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">{optionsError}</div>}
+          {errorMessage && <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{errorMessage}</div>}
+          {statusMessage && <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">{statusMessage}</div>}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <SearchableSelect label="Product Category" required value={product.category} options={categories} placeholder="Select product category" onChange={(value) => updateProduct("category", value)} />
+            <SearchableSelect label="Brand" value={product.Brand} options={brands} placeholder="Select brand" onChange={(value) => updateProduct("Brand", value)} />
+            {legacyFields.map(([name, label, type, required]) => (
+              <Field key={name} label={label} type={type || "text"} required={required} value={product[name]} onChange={(value) => updateProduct(name, value)} />
+            ))}
+          </div>
+
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-bold text-slate-700">Product Details *</label>
+            <textarea value={product.description} onChange={(event) => updateProduct("description", event.target.value)} rows={6} required className="focus-ring w-full resize-y rounded-md border border-slate-200 p-3 text-slate-900" />
+          </div>
+
+          <SpecificationEditor value={product.specifications} onChange={(value) => updateProduct("specifications", value)} />
+        </section>
+
+        <aside className="h-fit rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-xl font-black text-slate-950">Media Uploads</h2>
+          <p className="mt-1 text-sm text-slate-500">Upload up to 10 product images. The first image remains the legacy main image.</p>
+
+          <label className="mt-5 block rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 transition hover:border-teal-300">
+            <span className="mb-2 flex items-center gap-2 text-sm font-black text-slate-800">
+              <ImagePlus className="h-5 w-5 text-teal-700" /> Product Images *
+            </span>
+            <input type="file" accept="image/*" multiple onChange={handleImages} className="w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white" />
+          </label>
+
+          {imagePreviews.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {imagePreviews.map((preview, index) => (
+                <div key={preview.url} className="relative rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <img src={preview.url} alt={preview.name} className="aspect-square w-full rounded-sm object-contain" />
+                  <button type="button" onClick={() => removeImage(index)} className="absolute right-1 top-1 rounded-full bg-red-600 p-1 text-white" aria-label="Remove image">
+                    <X className="h-4 w-4" />
+                  </button>
+                  <p className="mt-2 truncate text-xs font-bold text-slate-500">{index === 0 ? "Main: " : ""}{preview.name}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <label className="mt-5 block rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 transition hover:border-teal-300">
+            <span className="mb-2 flex items-center gap-2 text-sm font-black text-slate-800">
+              <UploadCloud className="h-5 w-5 text-teal-700" /> Product Brochure *
+            </span>
+            <input type="file" accept=".pdf,.doc,.docx,image/*" onChange={handleBrochure} className="w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white" />
+            {brochureName && <span className="mt-3 block truncate text-sm font-bold text-slate-500">{brochureName}</span>}
+          </label>
+
+          <button type="submit" disabled={submitting} className="focus-ring mt-6 h-12 w-full rounded-md bg-teal-700 font-black text-white transition hover:bg-teal-800 disabled:bg-slate-400">
+            {submitting ? "Submitting..." : "Submit Product"}
+          </button>
+        </aside>
+      </form>
+    </AdminShell>
+  );
+}
+
+function Field({ label, value, onChange, type = "text", required = false }) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-bold text-slate-700">{label}{required ? " *" : ""}</label>
+      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} required={required} className="focus-ring h-11 w-full rounded-md border border-slate-200 px-3 text-slate-900" />
     </div>
   );
-};
+}
 
-export default ProductRequest;
+function SpecificationEditor({ value, onChange }) {
+  const specs = value || [];
+  const addSpec = () => onChange([...specs, { label: "", value: "" }]);
+  const updateSpec = (index, key, nextValue) => onChange(specs.map((spec, specIndex) => (specIndex === index ? { ...spec, [key]: nextValue } : spec)));
+  const removeSpec = (index) => onChange(specs.filter((_, specIndex) => specIndex !== index));
+
+  return (
+    <section className="mt-6 rounded-md border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-black text-slate-950">Dynamic Specifications</h3>
+          <p className="text-sm text-slate-500">Add fields like Voltage, RPM, Warranty, Weight or any other product detail.</p>
+        </div>
+        <button type="button" onClick={addSpec} className="inline-flex w-fit items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-black text-white hover:bg-slate-800">
+          <Plus className="h-4 w-4" /> Add Field
+        </button>
+      </div>
+      <div className="grid gap-2">
+        {specs.map((spec, index) => (
+          <div key={index} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+            <input value={spec.label} onChange={(event) => updateSpec(index, "label", event.target.value)} placeholder="Field name, e.g. Warranty" className="focus-ring h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" />
+            <input value={spec.value} onChange={(event) => updateSpec(index, "value", event.target.value)} placeholder="Value, e.g. 12 months" className="focus-ring h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" />
+            <button type="button" onClick={() => removeSpec(index)} className="rounded-md border border-red-200 bg-white px-3 text-red-700 hover:bg-red-50" aria-label="Delete specification">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SearchableSelect({ label, value, onChange, options, placeholder, required = false }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filteredOptions = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    if (!search) return options;
+    return options.filter((option) => option.name.toLowerCase().includes(search));
+  }, [options, query]);
+
+  return (
+    <div className="relative">
+      <label className="mb-2 block text-sm font-bold text-slate-700">{label}{required ? " *" : ""}</label>
+      <button type="button" onClick={() => setOpen((current) => !current)} className="focus-ring flex h-11 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 text-left text-slate-900">
+        <span className={value ? "truncate" : "truncate text-slate-400"}>{value || placeholder}</span>
+        <ChevronsUpDown className="h-4 w-4 shrink-0 text-slate-400" />
+      </button>
+      {required && <input tabIndex={-1} autoComplete="off" value={value} onChange={() => {}} required className="pointer-events-none absolute h-px w-px opacity-0" />}
+
+      {open && (
+        <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl">
+          <label className="relative block border-b border-slate-100">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search..." className="h-11 w-full px-9 text-sm outline-none" />
+          </label>
+          <div className="max-h-60 overflow-auto p-1">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <button key={option._id || option.name} type="button" onClick={() => { onChange(option.name); setOpen(false); setQuery(""); }} className="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-teal-50 hover:text-teal-800">
+                  <span className="truncate">{option.name}</span>
+                  {value === option.name && <Check className="h-4 w-4 text-teal-700" />}
+                </button>
+              ))
+            ) : (
+              <p className="px-3 py-4 text-center text-sm text-slate-500">No options found.</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

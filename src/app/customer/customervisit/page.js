@@ -1,700 +1,467 @@
 "use client";
-import axios from 'axios';
-import { useEffect, useState, useRef } from "react";
-import { useRouter, useSearchParams } from 'next/navigation';
 
-const GetProduct = () => {
-  const [products, setProducts] = useState([]);
-  const [groupedProducts, setGroupedProducts] = useState({});
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    description: '',
-    quantity: 1,
-    additionalRequirements: '',
-    companyName: '',
-    gstNumber: '',
-  });
-  const [step, setStep] = useState(1);
+import axios from "axios";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, FileText, MessageSquare, PackageSearch, PlayCircle, Search, SlidersHorizontal } from "lucide-react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { CustomerNavbar, Footer } from "../../components/CustomerChrome";
+import InquiryModal from "../../components/InquiryModal";
+import { formatPrice, normalizeCategoryName, productImages, productSpecs, uniqueCategories, uploadUrl } from "../../lib/catalog";
 
-  const categoryRefs = useRef({});
-  const productRefs = useRef({});
+export default function ProductVisitPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 p-8 text-center font-bold text-slate-600">Loading catalog...</div>}>
+      <ProductVisitContent />
+    </Suspense>
+  );
+}
 
+function ProductVisitContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const fetchProduct = async () => {
-    try {
-      const response = await axios.get(`http://localhost:5005/api/customerproductslist`);
-      if (Array.isArray(response.data.getproduct)) {
-        setProducts(response.data.getproduct);
-      } else {
-        console.error("Expected an array in 'getproduct' but got:", response.data.getproduct);
-      }
-    } catch (err) {
-      console.error("Error fetching products:", err);
-    }
-  };
+  const [products, setProducts] = useState([]);
+  const [companyInfo, setCompanyInfo] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [expandedProductId, setExpandedProductId] = useState("");
+  const [inquiryProduct, setInquiryProduct] = useState(null);
+  const [activeImages, setActiveImages] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProduct();
+    const load = async () => {
+      try {
+        const [productResponse, companyResponse] = await Promise.all([
+          axios.get("https://server.loyaltyautomation.com/api/customerproductslist"),
+          axios.get("https://server.loyaltyautomation.com/info/companyInfo"),
+        ]);
+        if (Array.isArray(productResponse.data.getproduct)) setProducts(productResponse.data.getproduct);
+        if (Array.isArray(companyResponse.data) && companyResponse.data[0]) setCompanyInfo(companyResponse.data[companyResponse.data.length - 1]);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
-  useEffect(() => {
-    if (products.length > 0) {
-      // Group the products by category
-      const grouped = products.reduce((acc, product) => {
-        if (!acc[product.category]) {
-          acc[product.category] = [];
-        }
-        acc[product.category].push(product);
-        return acc;
-      }, {});
-      setGroupedProducts(grouped);
+  const categories = useMemo(() => uniqueCategories(products), [products]);
 
-      // Get the category from the URL query parameters
-      const categoryFromUrl = searchParams.get('category');
-      if (categoryFromUrl) {
-        setSelectedCategory(categoryFromUrl);
-      } else if (searchQuery) {
-        setSelectedCategory(searchQuery);
-      } else {
-        const firstCategory = Object.keys(grouped)[0];
-        setSelectedCategory(firstCategory);
+  useEffect(() => {
+    const categoryFromUrl = searchParams.get("category");
+    const productIdFromUrl = searchParams.get("productId");
+
+    if (categoryFromUrl) setSelectedCategory(categoryFromUrl);
+
+    if (products.length > 0 && productIdFromUrl) {
+      const productFromUrl = products.find((product) => product._id === productIdFromUrl);
+      if (productFromUrl) {
+        setSelectedProductId(productFromUrl._id);
+        setExpandedProductId(productFromUrl._id);
+        setActiveImages((current) => ({ ...current, [productFromUrl._id]: productImages(productFromUrl)[0] || "" }));
+        if (productFromUrl.category && !categoryFromUrl) setSelectedCategory(normalizeCategoryName(productFromUrl.category));
       }
     }
-  }, [products, searchParams, searchQuery]);
+  }, [products, searchParams]);
 
-  // Filter categories by searchQuery
-  const filteredCategories = Object.keys(groupedProducts).filter((category) =>
-    category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProducts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return products.filter((product) => {
+      const matchesCategory = selectedCategory === "All" || normalizeCategoryName(product.category) === selectedCategory;
+      const matchesSearch =
+        !query ||
+        [product.title, product.category, product.description, product.Brand, product.ModelNumber, ...(product.specifications || []).flatMap((spec) => [spec.label, spec.value])]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query));
+      return matchesCategory && matchesSearch;
+    });
+  }, [products, selectedCategory, searchQuery]);
 
-  // Filter products by searchQuery within selected category
-  const filteredProducts = selectedCategory
-    ? groupedProducts[selectedCategory].filter((product) =>
-        product.title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : [];
+  const selectedCategoryProducts = useMemo(() => {
+    if (selectedCategory === "All") return [];
+    return products
+      .filter((product) => normalizeCategoryName(product.category) === selectedCategory)
+      .sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+  }, [products, selectedCategory]);
 
-  const handleCategoryClick = (category) => {
-    setSelectedCategory(category);
-    router.push(`/customer/customervisit?category=${category}`);
+  const selectedProduct = useMemo(() => {
+    if (!selectedProductId) return null;
+    return products.find((product) => product._id === selectedProductId) || null;
+  }, [products, selectedProductId]);
 
-    if (categoryRefs.current[category]) {
-      categoryRefs.current[category].scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+  const relatedProducts = useMemo(() => {
+    if (!selectedProduct) return filteredProducts;
+    return filteredProducts.filter((product) => product._id !== selectedProduct._id);
+  }, [filteredProducts, selectedProduct]);
+
+  useEffect(() => {
+    if (!selectedProductId) return;
+    const timeout = window.setTimeout(() => {
+      document.getElementById("selected-product-specs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => window.clearTimeout(timeout);
+  }, [selectedProductId, selectedCategory, filteredProducts]);
+
+  const selectProduct = (product) => {
+    setSelectedProductId(product._id);
+    setExpandedProductId("");
+    setActiveImages((current) => ({ ...current, [product._id]: current[product._id] || productImages(product)[0] || "" }));
+    setSelectedCategory(product.category ? normalizeCategoryName(product.category) : "All");
+    router.push(`/customer/customervisit?productId=${product._id}`);
+  };
+
+  const viewProduct = (product) => {
+    setSelectedProductId(product._id);
+    setExpandedProductId(product._id);
+    setActiveImages((current) => ({ ...current, [product._id]: current[product._id] || productImages(product)[0] || "" }));
+    setSelectedCategory(product.category ? normalizeCategoryName(product.category) : "All");
+    router.push(`/customer/customervisit?productId=${product._id}`);
+  };
+
+  const setProductImage = (productId, image) => {
+    setActiveImages((current) => ({ ...current, [productId]: image }));
+  };
+
+  const chooseCategory = (categoryKey) => {
+    setSelectedCategory(categoryKey);
+    setSelectedProductId("");
+    setExpandedProductId("");
+    if (categoryKey === "All") {
+      router.push("/customer/customervisit");
+    } else {
+      router.push(`/customer/customervisit?category=${encodeURIComponent(categoryKey)}`);
     }
-  };
-
-  const handleProductClick = (productId) => {
-    if (productRefs.current[productId]) {
-      productRefs.current[productId].scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
-  };
-
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
-  };
-
-  const handleNext = () => {
-    if (step < 5) {
-      setStep(step + 1);
-    }
-  };
-
-  const handlePrev = () => {  
-    if (step > 1) {
-      setStep(step - 1);
-    }
-  };
-
-  const handleSubmit = async () => {
-    try {
-      await axios.post("http://localhost:5005/api/submit", {
-        customerInfo: {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          description: formData.description,
-        },
-        productInfo: {
-          quantity: formData.quantity,
-          additionalRequirements: formData.additionalRequirements,
-          companyName: formData.companyName,
-          gstNumber: formData.gstNumber,
-        },
-        product: {
-          title: selectedProduct.title,
-          price: selectedProduct.price,
-          productimage: selectedProduct.productimage,
-          description: selectedProduct.description,
-        },
-      });
-      alert("Submission successful!");
-      setSelectedProduct(null);
-    } catch (err) {
-      console.error("Error submitting data:", err);
-      alert("Error saving data.");
-    }
-  };
-
-  const handleInterestedClick = (product) => {
-    setSelectedProduct(product);
-    setStep(1); 
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header with search */}
-      <div className="sticky top-0 bg-white z-50 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center py-4">
-            <div className="flex items-center justify-center sm:justify-start w-full sm:w-auto mb-4 sm:mb-0">
-              <img src="/logo123.png" alt="Company Logo" className="h-10 mr-4" />
-            </div>
-            <div className="w-full sm:w-auto sm:flex-1 sm:flex justify-center">
-              <div className="relative w-full max-w-md">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  placeholder="Search categories or products..."
-                  className="w-full pl-4 pr-10 py-3 rounded-full border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500 focus:outline-none transition-all"
-                />
-                <div className="absolute right-3 top-3 text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+    <div className="min-h-screen bg-slate-50">
+      <CustomerNavbar
+        searchQuery={searchQuery}
+        onSearchChange={(event) => setSearchQuery(event.target.value)}
+        categories={categories}
+        products={products}
+      />
+
+      <main className="px-4 py-6 lg:ml-[250px] lg:px-6">
+        <section className="grid gap-5 lg:block">
+          <aside className="no-scrollbar lg:fixed lg:left-0 lg:top-[73px] lg:z-30 lg:h-[calc(100vh-73px)] lg:w-[250px] lg:overflow-y-auto lg:border-r lg:border-slate-200 lg:bg-white lg:px-4 lg:py-5 lg:shadow-sm">
+            <div className="rounded-md border border-slate-200 bg-white p-3 shadow-sm lg:border-0 lg:p-0 lg:shadow-none">
+              <button onClick={() => router.push("/")} className="mb-4 inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-black text-slate-700 hover:border-slate-300 hover:text-teal-800">
+                <ArrowLeft className="h-4 w-4" /> Back to homepage
+              </button>
+
+              <div className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-3">
+                <SlidersHorizontal className="h-4 w-4 text-teal-700" />
+                <div>
+                  <h2 className="text-sm font-black text-slate-950">Catalog Filter</h2>
+                  <p className="text-xs font-bold text-slate-400">{filteredProducts.length} products</p>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row gap-8">
-          {/* Categories sidebar */}
-          <div className="w-full md:w-1/4">
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="font-bold text-xl mb-6 text-gray-800">Categories</h2>
-              <div className="space-y-3">
-                {filteredCategories.length === 0 ? (
-                  <p className="text-gray-500">No categories found</p>
-                ) : (
-                  filteredCategories.map((category) => (
-                    <div key={category} className="mb-4">
-                      <div
-                        className={`cursor-pointer p-3 rounded-lg transition-all hover:bg-blue-50 ${
-                          selectedCategory === category ? "bg-blue-50 border-l-4 border-blue-600" : ""
-                        }`}
-                        onClick={() => handleCategoryClick(category)}
-                        ref={(el) => (categoryRefs.current[category] = el)}
+              <label className="relative block">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search catalog"
+                  className="focus-ring h-10 w-full rounded-md border border-slate-200 bg-slate-50 pl-8 pr-2 text-sm font-bold text-slate-900"
+                />
+              </label>
+
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Categories</p>
+                <div className="grid gap-1">
+                  <button
+                    type="button"
+                    onClick={() => chooseCategory("All")}
+                    className={`flex items-center justify-between rounded-md px-2.5 py-2 text-left text-sm font-bold transition ${selectedCategory === "All" ? "bg-teal-50 text-teal-800" : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"}`}
+                  >
+                    <span>All Products</span>
+                    <span className="text-xs text-slate-400">{products.length}</span>
+                  </button>
+                  {categories.map((category) => (
+                    <div key={category.key}>
+                      <button
+                        type="button"
+                        onClick={() => chooseCategory(category.key)}
+                        className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm font-bold transition ${selectedCategory === category.key ? "bg-teal-50 text-teal-800" : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"}`}
                       >
-                        <h5 className={`font-medium ${selectedCategory === category ? "text-blue-600" : "text-gray-700"}`}>
-                          {category}
-                        </h5>
-                      </div>
-
-                      {/* Dropdown Products */}
-                      {selectedCategory === category && groupedProducts[category] && (
-                        <div className="ml-4 mt-2 space-y-1">
-                          {groupedProducts[category]?.map((product) => (
-                            <div
-                              key={product._id}
-                              className="cursor-pointer p-2 text-sm rounded-md hover:bg-gray-100 transition-all"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleProductClick(product._id);
-                              }}
-                            >
-                              <p className="text-gray-600">{product.title}</p>
-                            </div>
-                          ))}
+                        <span className="truncate">{category.name}</span>
+                        <span className="shrink-0 text-xs text-slate-400">{category.count}</span>
+                      </button>
+                      {selectedCategory === category.key && (
+                        <div className="my-1 grid gap-1 border-l-2 border-teal-100 pl-2">
+                          {selectedCategoryProducts.length > 0 ? (
+                            selectedCategoryProducts.map((product) => (
+                              <button
+                                key={product._id}
+                                type="button"
+                                onClick={() => selectProduct(product)}
+                                className={`rounded-md px-2.5 py-2 text-left text-xs font-bold leading-5 transition ${selectedProductId === product._id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-50 hover:text-teal-800"}`}
+                              >
+                                <span className="line-clamp-2">{product.title || "Untitled product"}</span>
+                              </button>
+                            ))
+                          ) : (
+                            <p className="rounded-md border border-dashed border-slate-200 px-3 py-4 text-xs font-bold text-slate-400">No products in this category.</p>
+                          )}
                         </div>
                       )}
                     </div>
-                  ))
-                )}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          </aside>
 
-          {/* Product display area */}
-          <div className="w-full md:w-3/4">
-            {selectedCategory && groupedProducts[selectedCategory]?.length > 0 ? (
-              <div ref={(el) => (categoryRefs.current[selectedCategory] = el)}>
-                <h1 className="text-2xl font-bold mb-6 text-gray-800">{selectedCategory}</h1>
-                
-                {/* Product cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-                  {filteredProducts.length === 0 ? (
-                    <p className="text-gray-500">No products available in this category</p>
-                  ) : (
-                    filteredProducts.map((product) => (
-                      <div
-                        key={product._id}
-                        className="bg-white rounded-xl shadow-sm overflow-hidden transition-transform hover:shadow-md hover:-translate-y-1"
-                        ref={(el) => (productRefs.current[product._id] = el)}
-                      >
-                        <div className="h-48 overflow-hidden">
-                          <img
-                            src={`http://localhost:5005/api/uploads/${product.productimage}`}
-                            alt={product.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="p-4">
-                          <h2 className="font-semibold text-lg text-gray-800 mb-2">{product.title}</h2>
-                          <p className="text-xl font-bold text-blue-600 mb-3">
-                            ₹{product.price.toLocaleString()}<span className="text-gray-400 text-sm ml-1">/piece</span>
-                          </p>
-                          <button
-                            onClick={() => handleInterestedClick(product)}
-                            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all font-medium"
-                          >
-                            View Details
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
+          <div className="min-w-0">
+            <div className="mb-4 rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wide text-teal-700">
+                    <PackageSearch className="h-4 w-4" /> Industrial Catalog
+                  </p>
+                  <h1 className="mt-1 text-2xl font-black text-slate-950">Products</h1>
                 </div>
-                
-                {/* Product details expanded view */}
-                {filteredProducts.length > 0 && (
-                  <div className="space-y-8">
-                    {filteredProducts.map((product) => (
-                      <div
-                        key={`detail-${product._id}`}
-                        className="bg-white rounded-xl shadow-sm overflow-hidden"
-                        ref={(el) => (productRefs.current[product._id] = el)}
-                      >
-                        <div className="flex flex-col md:flex-row">
-                          {/* Product images */}
-                          <div className="w-full md:w-2/5 p-6">
-                            <div className="flex gap-4">
-                              <div className="hidden md:flex flex-col gap-2 w-1/5">
-                                {[...Array(4)].map((_, index) => (
-                                  <div key={index} className="border border-gray-200 rounded-md overflow-hidden">
-                                    <img
-                                      className="h-16 w-full object-cover"
-                                      src={`http://localhost:5005/api/uploads/${product.productimage}`}
-                                      alt={`${product.title} view ${index + 1}`}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="w-full md:w-4/5 rounded-lg overflow-hidden border border-gray-200">
-                                <img
-                                  className="w-full h-64 md:h-96 object-contain"
-                                  src={`http://localhost:5005/api/uploads/${product.productimage}`}
-                                  alt={product.title}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Product info */}
-                          <div className="w-full md:w-3/5 p-6 flex flex-col">
-                            <div className="mb-4">
-                              <h2 className="text-2xl font-bold text-gray-800 mb-2">{product.title}</h2>
-                              <p className="text-xl font-bold text-blue-600 mb-1">
-                                ₹{product.price.toLocaleString()}
-                                <span className="text-gray-400 text-sm ml-1">/piece</span>
-                              </p>
-                              <p className="text-sm text-gray-600 mb-4">Category: {product.category}</p>
-                              
-                              <div className="flex gap-4 mb-6">
-                                <a
-                                  className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-                                  href={`http://localhost:5005/api/uploads/${product.ProductBroucher}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                  </svg>
-                                  Product Brochure
-                                </a>
-                                
-                                <a
-                                  className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-                                  href={`http://localhost:5005/api/uploads/${product.Productvideo}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  Watch Video
-                                </a>
-                              </div>
-                            </div>
-                            
-                            {/* Specifications */}
-                            <div className="mb-6">
-                              <h3 className="font-medium text-gray-800 mb-2">Specifications</h3>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <p className="text-xs text-gray-500">Usage</p>
-                                  <p className="text-sm font-medium">{product.Usage || "N/A"}</p>
-                                </div>
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <p className="text-xs text-gray-500">Input Phase</p>
-                                  <p className="text-sm font-medium">{product.inputPhase || "N/A"}</p>
-                                </div>
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <p className="text-xs text-gray-500">Input Voltage</p>
-                                  <p className="text-sm font-medium">{product.inputvoltage || "N/A"}</p>
-                                </div>
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <p className="text-xs text-gray-500">Model Number</p>
-                                  <p className="text-sm font-medium">{product.ModelNumber || "N/A"}</p>
-                                </div>
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <p className="text-xs text-gray-500">Motor RPM</p>
-                                  <p className="text-sm font-medium">{product.MotorRPM || "N/A"}</p>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Description */}
-                            <div className="mb-6">
-                              <h3 className="font-medium text-gray-800 mb-2">Product Details</h3>
-                              <p className="text-gray-600 text-sm">{product.description}</p>
-                            </div>
-                            
-                            {/* Call to action */}
-                            <div className="mt-auto">
-                              <button
-                                onClick={() => handleInterestedClick(product)}
-                                className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all font-medium flex items-center justify-center"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                I'm Interested
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                <p className="text-sm font-bold text-slate-500">
+                  {filteredProducts.length} of {products.length} products shown
+                </p>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="rounded-md border border-slate-200 bg-white p-10 text-center font-bold text-slate-500">Loading products...</div>
+            ) : filteredProducts.length > 0 ? (
+              <div className="grid gap-4">
+                {selectedProduct && (
+                  <CatalogProductRow
+                    product={selectedProduct}
+                    id="selected-product-specs"
+                    active
+                    activeImage={activeImages[selectedProduct._id]}
+                    showDescription={expandedProductId === selectedProduct._id}
+                    viewButtonLabel="View Product"
+                    onImageChange={(image) => setProductImage(selectedProduct._id, image)}
+                    onView={() => setExpandedProductId(selectedProduct._id)}
+                    onInquiry={() => setInquiryProduct(selectedProduct)}
+                  />
+                )}
+
+                {selectedProduct && (
+                  <div className="mt-2 border-t border-slate-200 pt-4">
+                    <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-teal-700">More related products</p>
+                        <h2 className="text-xl font-black text-slate-950">{selectedProduct.category || "Same category"}</h2>
                       </div>
-                    ))}
+                      <p className="text-sm font-bold text-slate-500">{relatedProducts.length} other products</p>
+                    </div>
+                    {relatedProducts.length > 0 ? (
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {relatedProducts.map((product) => (
+                          <RelatedProductTile key={product._id} product={product} onView={() => selectProduct(product)} onInquiry={() => setInquiryProduct(product)} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-md border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-bold text-slate-500">No other related products in this category.</div>
+                    )}
                   </div>
                 )}
+
+                {!selectedProduct && filteredProducts.map((product) => (
+                  <CatalogProductRow
+                    key={product._id}
+                    product={product}
+                    id={`product-${product._id}`}
+                    active={selectedProductId === product._id}
+                    activeImage={activeImages[product._id]}
+                    showDescription={false}
+                    onImageChange={(image) => setProductImage(product._id, image)}
+                    onView={() => viewProduct(product)}
+                    onInquiry={() => setInquiryProduct(product)}
+                  />
+                ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-64 bg-white rounded-xl shadow-sm p-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-                <p className="text-gray-500">No products available in this category</p>
-              </div>
+              <div className="rounded-md border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">No products match the selected filters.</div>
             )}
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
 
-      {/* Product Details Form (Modal) */}
-      {selectedProduct && (
-        <div className="fixed inset-0 bg-white bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 max-h-[90vh] overflow-auto animate-fadeIn mx-4">
-            {/* Progress indicator */}
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">
-                {step === 1 && "Your Details"}
-                {step === 2 && "Select Quantity"}
-                {step === 3 && "Additional Requirements"}
-                {step === 4 && "Company Information"}
-                {step === 5 && "Review & Submit"}
-              </h2>
-              <button 
-                onClick={() => setSelectedProduct(null)} 
-                className="text-gray-500 hover:text-gray-700 focus:outline-none"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Step progress bar */}
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-8">
-              <div 
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-in-out" 
-                style={{ width: `${(step / 5) * 100}%` }}
-              ></div>
-            </div>
-
-            {/* Step 1: Customer Info */}
-            {step === 1 && (
-              <div className="space-y-4">
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">Your Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="John Doe"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    required
-                  />
-                </div>
-                
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="email@example.com"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    required
-                  />
-                </div>
-                
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                  <input
-                    type="text"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+1 (123) 456-7890"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    required
-                  />
-                </div>
-                
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Tell us about your requirements"
-                    rows="3"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"
-                    required
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Quantity */}
-            {step === 2 && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-center py-6">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-32 h-32 rounded-lg overflow-hidden border-2 border-gray-100 shadow-sm mb-4">
-                      <img 
-                        src={`http://localhost:5005/api/uploads/${selectedProduct.productimage}`}
-                        alt={selectedProduct.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-800">{selectedProduct.title}</h3>
-                    <p className="text-blue-600 font-medium">₹{selectedProduct.price.toLocaleString()}/piece</p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                  <div className="flex rounded-lg overflow-hidden border border-gray-300">
-                    <button 
-                      type="button" 
-                      onClick={() => setFormData({ ...formData, quantity: Math.max(1, formData.quantity - 1) })}
-                      className="px-4 py-3 bg-gray-50 text-gray-700 hover:bg-gray-100 focus:outline-none transition-colors font-medium"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      name="quantity"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
-                      min="1"
-                      className="w-full p-2 text-center focus:outline-none"
-                      required
-                    />
-                    <button 
-                      type="button" 
-                      onClick={() => setFormData({ ...formData, quantity: formData.quantity + 1 })}
-                      className="px-4 py-3 bg-gray-50 text-gray-700 hover:bg-gray-100 focus:outline-none transition-colors font-medium"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Additional Requirements */}
-            {step === 3 && (
-              <div className="space-y-4">
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">Additional Requirements</label>
-                  <textarea
-                    name="additionalRequirements"
-                    value={formData.additionalRequirements}
-                    onChange={(e) => setFormData({ ...formData, additionalRequirements: e.target.value })}
-                    placeholder="Special instructions, customization requests, or other requirements"
-                    rows="6"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"
-                  />
-                </div>
-                
-                <div className="bg-yellow-50 rounded-lg p-4">
-                  <p className="text-sm text-yellow-800">
-                    <span className="font-medium">Note:</span> Additional requirements may affect pricing and delivery time. We'll discuss details after submission.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Step 4: Company Info */}
-            {step === 4 && (
-              <div className="space-y-4">
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                  <input
-                    type="text"
-                    name="companyName"
-                    value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                    placeholder="ABC Corporation"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  />
-                </div>
-                
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">GST Number</label>
-                  <input
-                    type="text"
-                    name="gstNumber"
-                    value={formData.gstNumber}
-                    onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value })}
-                    placeholder="22AAAAA0000A1Z5"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  />
-                </div>
-                
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600">
-                    Business information helps us prepare proper invoices and documentation.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Review */}
-            {step === 5 && (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-700">Product Details</h3>
-                  <div className="flex items-center space-x-4 bg-gray-50 p-4 rounded-lg">
-                    <img 
-                      src={`http://localhost:5005/api/uploads/${selectedProduct.productimage}`}
-                      alt={selectedProduct.title}
-                      className="w-16 h-16 object-cover rounded-md"
-                    />
-                    <div>
-                      <h4 className="font-semibold">{selectedProduct.title}</h4>
-                      <p className="text-gray-600 text-sm">₹{selectedProduct.price.toLocaleString()} × {formData.quantity}</p>
-                      <p className="font-bold text-blue-600">Total: ₹{(selectedProduct.price * formData.quantity).toLocaleString()}</p>
-                    </div>
-                  </div>
-                  
-                  <h3 className="font-medium text-gray-700 mt-4">Contact Information</h3>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-sm text-gray-500">Name</p>
-                  <p className="font-medium">{formData.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Email</p>
-                  <p className="font-medium">{formData.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Phone</p>
-                  <p className="font-medium">{formData.phone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Company</p>
-                  <p className="font-medium">{formData.companyName || "Not specified"}</p>
-                </div>
-              </div>
-            </div>
-            
-            {formData.additionalRequirements && (
-              <div>
-                <h3 className="font-medium text-gray-700">Additional Requirements</h3>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm">{formData.additionalRequirements}</p>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <span className="font-medium">Next steps:</span> After submission, our team will contact you within 24 hours to discuss your requirements.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Navigation buttons */}
-      <div className="mt-8 space-y-3">
-        {step === 5 ? (
-          <button
-            onClick={handleSubmit}
-            className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
-          >
-            Submit Inquiry
-          </button>
-        ) : (
-          <button
-            onClick={handleNext}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-          >
-            Next
-          </button>
-        )}
-        
-        {step > 1 && (
-          <button
-            onClick={handlePrev}
-            className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
-          >
-            Prev
-          </button>
-        )}
-        
-       
-        
-      </div>
-    </div>
-</div>
-)}
+      <Footer companyInfo={companyInfo} />
+      {inquiryProduct && <InquiryModal product={inquiryProduct} onClose={() => setInquiryProduct(null)} />}
     </div>
   );
 }
-export default GetProduct;
+
+function CatalogProductRow({ product, id, activeImage, showDescription = false, viewButtonLabel = "View Product", onImageChange, onView, onInquiry }) {
+  const images = productImages(product);
+  const specs = productSpecs(product);
+  const detailScrollRef = useRef(null);
+  const selectedImage = activeImage || images[0] || "";
+  const activeImageIndex = Math.max(0, images.findIndex((image) => image === selectedImage));
+  const showViewButton = !showDescription;
+  const fixedImageLayout = showDescription;
+
+  const showImage = (direction) => {
+    if (images.length < 2) return;
+    const currentIndex = activeImageIndex >= 0 ? activeImageIndex : 0;
+    const nextIndex = direction === "next"
+      ? (currentIndex + 1) % images.length
+      : (currentIndex - 1 + images.length) % images.length;
+    onImageChange(images[nextIndex]);
+  };
+
+  const scrollDetailsFromImage = (event) => {
+    if (!fixedImageLayout) return;
+
+    const details = detailScrollRef.current;
+    if (!details) return;
+
+    const maxScrollTop = details.scrollHeight - details.clientHeight;
+    if (maxScrollTop <= 0) return;
+
+    const atTop = details.scrollTop <= 0;
+    const atBottom = details.scrollTop >= maxScrollTop - 1;
+    const shouldReleasePageScroll = (event.deltaY > 0 && atBottom) || (event.deltaY < 0 && atTop);
+
+    if (shouldReleasePageScroll) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    details.scrollTop = Math.max(0, Math.min(maxScrollTop, details.scrollTop + event.deltaY));
+  };
+
+  return (
+    <article id={id} className={`scroll-mt-24 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 ${fixedImageLayout ? "xl:h-[min(680px,calc(100vh-8rem))]" : ""}`}>
+      <div className={`grid gap-0 xl:grid-cols-[minmax(360px,0.92fr)_minmax(0,1.08fr)] ${fixedImageLayout ? "xl:h-full" : ""}`}>
+        <div onWheelCapture={scrollDetailsFromImage} className={`flex flex-col items-center border-b border-slate-200 bg-slate-50 p-4 xl:border-b-0 xl:border-r ${fixedImageLayout ? "xl:h-full xl:overflow-hidden" : "xl:sticky xl:top-24 xl:self-start"}`}>
+          <div className="relative aspect-square w-full max-w-[560px] overflow-hidden rounded-md border border-slate-200 bg-white">
+            {selectedImage ? (
+              <img src={uploadUrl(selectedImage)} alt={product.title} className="h-full w-full object-contain" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400">No image available</div>
+            )}
+            {images.length > 1 && (
+              <>
+                <button type="button" onClick={() => showImage("prev")} className="focus-ring absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-900 shadow-sm transition hover:border-slate-300 hover:text-teal-800" aria-label="Previous image">
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button type="button" onClick={() => showImage("next")} className="focus-ring absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-900 shadow-sm transition hover:border-slate-300 hover:text-teal-800" aria-label="Next image">
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+                <div className="absolute bottom-3 right-3 rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-black text-white">
+                  {activeImageIndex + 1}/{images.length}
+                </div>
+              </>
+            )}
+          </div>
+
+          {images.length > 1 && (
+            <div className="no-scrollbar mt-3 flex max-w-[560px] justify-center gap-2 overflow-auto pb-1">
+              {images.map((image, index) => (
+                <button key={`${image}-${index}`} onClick={() => onImageChange(image)} className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-white p-1 transition hover:border-slate-300 ${selectedImage === image ? "border-slate-400 ring-2 ring-slate-100" : "border-slate-200"}`}>
+                  <img src={uploadUrl(image)} alt={`${product.title} ${index + 1}`} className="h-full w-full object-contain" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div ref={detailScrollRef} className={`product-detail-scroll min-w-0 overflow-hidden p-5 xl:p-6 ${fixedImageLayout ? "xl:h-full xl:overflow-y-auto" : ""}`}>
+          <p className="mb-2 text-xs font-black uppercase tracking-wide text-teal-700">{product.category || "Industrial Product"}</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <button onClick={onView} className="min-w-0 cursor-pointer text-left">
+              <h2 className="text-2xl font-black leading-tight text-slate-950 hover:text-teal-800 sm:text-[1.7rem]">{product.title || "Untitled product"}</h2>
+            </button>
+            {showViewButton && (
+              <button onClick={onView} className="focus-ring inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-slate-200 px-3.5 py-2 text-sm font-black text-slate-800 hover:border-slate-300 hover:text-teal-800">
+                <FileText className="h-4 w-4" /> {viewButtonLabel}
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xl font-black text-teal-800">{formatPrice(product.price)} <span className="text-xs font-bold text-slate-400">/ piece</span></p>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button onClick={onInquiry} className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-teal-700 px-3.5 py-2 text-sm font-black text-white hover:bg-teal-800">
+              <MessageSquare className="h-4 w-4" /> Send Inquiry
+            </button>
+            {product.ProductBroucher && (
+              <a href={uploadUrl(product.ProductBroucher)} target="_blank" rel="noreferrer" className="focus-ring inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 px-3.5 py-2 text-sm font-black text-slate-800 hover:border-slate-300 hover:text-teal-800">
+                <Download className="h-4 w-4" /> Brochure
+              </a>
+            )}
+            {product.Productvideo && (
+              <a href={product.Productvideo} target="_blank" rel="noreferrer" className="focus-ring inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 px-3.5 py-2 text-sm font-black text-slate-800 hover:border-slate-300 hover:text-teal-800">
+                <PlayCircle className="h-4 w-4" /> Video
+              </a>
+            )}
+          </div>
+
+          <div className="mt-7">
+            <div className="mb-3 flex items-center gap-2 text-lg font-black text-slate-950">
+              <FileText className="h-5 w-5 text-teal-700" /> Technical Specifications
+            </div>
+            {specs.length > 0 ? (
+              <div className="overflow-hidden rounded-md border border-slate-200">
+                <table className="w-full text-left text-sm">
+                  <tbody className="divide-y divide-slate-200">
+                    {specs.map(([label, value]) => (
+                      <tr key={label} className="bg-white">
+                        <th className="w-2/5 bg-slate-50 px-4 py-3 align-top text-xs font-black uppercase tracking-wide text-slate-500">{label}</th>
+                        <td className="px-4 py-3 font-bold text-slate-900">{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="rounded-md border border-dashed border-slate-300 p-4 text-sm text-slate-500">Specifications are not available for this product yet.</p>
+            )}
+          </div>
+
+          {showDescription && (
+            <div className="mt-7 border-t border-slate-200 pt-6">
+              <h3 className="text-lg font-black text-slate-950">Product Description</h3>
+              <p className="mt-3 text-justify leading-7 text-slate-600">{product.description || "Detailed product information available through inquiry."}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function RelatedProductTile({ product, onView, onInquiry }) {
+  const image = productImages(product)[0] || "";
+
+  return (
+    <article className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm transition hover:border-slate-300">
+      <button type="button" onClick={onView} className="block aspect-[4/3] w-full bg-slate-50 p-3">
+        {image ? (
+          <img src={uploadUrl(image)} alt={product.title} className="h-full w-full object-contain" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-xs font-bold text-slate-400">No image available</div>
+        )}
+      </button>
+      <div className="p-3">
+        <p className="mb-1 line-clamp-1 text-[11px] font-black uppercase tracking-wide text-teal-700">{product.category || "Industrial Product"}</p>
+        <button type="button" onClick={onView} className="cursor-pointer text-left">
+          <h3 className="line-clamp-2 min-h-10 text-sm font-black leading-5 text-slate-950 hover:text-teal-800">{product.title || "Untitled product"}</h3>
+        </button>
+        <p className="mt-2 text-sm font-black text-teal-800">{formatPrice(product.price)}</p>
+        <div className="mt-3 flex gap-2">
+          <button type="button" onClick={onView} className="focus-ring flex-1 rounded-md border border-slate-200 px-2.5 py-2 text-xs font-black text-slate-800 hover:border-slate-300 hover:text-teal-800">
+            View →
+          </button>
+          <button type="button" onClick={onInquiry} className="focus-ring flex-1 rounded-md bg-teal-700 px-2.5 py-2 text-xs font-black text-white hover:bg-teal-800">
+            Inquiry
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}

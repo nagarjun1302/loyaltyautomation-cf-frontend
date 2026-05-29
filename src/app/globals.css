@@ -6,19 +6,86 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #f6f7f9;
+  --foreground: #17202a;
+  --surface: #ffffff;
+  --ink: #17202a;
+  --muted: #657282;
+  --line: #dfe4ea;
+  --steel: #253545;
+  --teal: #007c89;
+  --amber: #f5a623;
+  --green: #18865b;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.industrial-grid {
+  background-image:
+    linear-gradient(rgba(37, 53, 69, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 53, 69, 0.055) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.section-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin-inline: auto;
+}
+
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 3px rgba(0, 124, 137, 0.22);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #b8c2cc;
+  border-radius: 999px;
+}
+
+.product-detail-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.product-detail-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
