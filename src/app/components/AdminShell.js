@@ -39,7 +39,7 @@ export default function AdminShell({ title, subtitle, children, actions }) {
     setLoggingOut(true);
 
     try {
-      await axios.post("https://server.loyaltyautomation.com/api/logout", {}, {
+      await axios.post("http://localhost:5005/api/logout", {}, {
         withCredentials: true,
       });
     } catch (error) {

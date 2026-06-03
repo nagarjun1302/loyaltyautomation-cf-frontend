@@ -10,6 +10,27 @@ import { API_BASE, uniqueCategories } from "../../lib/catalog";
 
 const validSlugs = ["company", "registration-directors-info"];
 
+const profileItems = [
+  {
+    title: "VISION",
+    image: "/profile/2.jpg",
+    text:
+      "Our vision is to move towards our goal of being a world-class company. To discover the new products. Excite and delight our customers through the best products and services.",
+  },
+  {
+    title: "MISSION",
+    image: "/profile/1.jpg",
+    text:
+      "The world of technology is changing all around us. So Loyalty Automation processes innovative projects and new technologies. Loyalty Automation is a successful manufacturer, supplier and provider of automation as well as electrical services. We translate these advanced technologies into value for our customers through our professional solution. We wish to use the opportunities to achieve our goals.",
+  },
+  {
+    title: "OBJECTIVE",
+    image: "/profile/3.jpg",
+    text:
+      "To be a global and socially responsible company. We make a rapport among our customers through total customer satisfaction. To deliver safe and comfortable products to our customers.",
+  },
+];
+
 export default function AboutUsDetailPage() {
   const params = useParams();
   const slug = String(params.slug || "company");
@@ -100,54 +121,26 @@ export default function AboutUsDetailPage() {
                 </div>
 
                 {/* 2. HERO IMAGE — full width below text */}
-                <div className="w-full">
-                  <img
-                    src={content.imageUrl || "/partnerslogo.png"}
-                    alt={content.title}
-                    loading="lazy"
-                    className="w-full object-cover object-center"
-                    style={{ maxHeight: "480px" }}
-                  />
-                </div>
-
-                {/* 3. SECONDARY BAND */}
-                <div className="border-t border-slate-200 bg-slate-50 p-6 lg:p-10">
-                  <div className="grid gap-6 lg:grid-cols-2">
-
-                    {/* Secondary image */}
-                    <div
-                      className="overflow-hidden rounded-md border border-slate-200 bg-slate-100"
-                      style={{ aspectRatio: "4/3" }}
-                    >
-                      <img
-                        src={content.secondaryImageUrl || content.imageUrl || "/partnerslogo.png"}
-                        alt={`${content.title} detail`}
-                        loading="lazy"
-                        className="h-full w-full object-cover object-center"
-                      />
-                    </div>
-
-                    {/* Text */}
-                    <div className="flex flex-col justify-center gap-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-md bg-slate-950 text-white">
-                        <ShieldCheck className="h-5 w-5" />
-                      </div>
-                      <h2 className="text-2xl font-black text-slate-950">
-                        Industrial B2B company profile
-                      </h2>
-                      <p className="leading-7 text-slate-600">
-                        This content is maintained from the admin console so buyers always see current
-                        company, registration and leadership information.
-                      </p>
-                    </div>
+                {!isRegistration && (
+                  <div className="w-full">
+                    <img
+                      src={content.imageUrl || "/partnerslogo.png"}
+                      alt={content.title}
+                      loading="lazy"
+                      className="w-full object-cover object-center"
+                      style={{ maxHeight: "480px" }}
+                    />
                   </div>
-                </div>
+                )}
+                
 
                 {/* 4. DYNAMIC BLOCKS */}
                 {isRegistration
                   ? <RegistrationBlocks content={content} />
                   : <CompanyBlocks content={content} />
                 }
+
+                {!isRegistration && <OurProfileSection />}
 
               </article>
 
@@ -162,6 +155,31 @@ export default function AboutUsDetailPage() {
 
       <Footer companyInfo={companyInfo} />
     </div>
+  );
+}
+
+function OurProfileSection() {
+  return (
+    <section className="border-t border-slate-200 bg-slate-50 p-6 lg:p-10">
+      <div className="mb-7 max-w-3xl">
+        <p className="text-xs font-black uppercase tracking-wide text-teal-700">Loyalty Automation</p>
+        <h2 className="mt-2 text-3xl font-black text-slate-950">Our Profile</h2>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        {profileItems.map((item) => (
+          <article key={item.title} className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+            <div className="aspect-[4/3] bg-white">
+              <img src={item.image} alt={item.title} loading="lazy" className="h-full w-full object-cover" />
+            </div>
+            <div className="p-5">
+              <h3 className="text-xl font-black text-slate-950">{item.title}</h3>
+              <p className="mt-3 text-sm leading-7 text-slate-600">{item.text}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -198,15 +216,18 @@ function RegistrationBlocks({ content }) {
     <div className="grid gap-6 p-6 lg:p-10">
       {content.registrationDetails?.length > 0 && (
         <section>
-          <h2 className="mb-3 text-xl font-black text-slate-950">Registration Details</h2>
-          <div className="overflow-hidden rounded-md border border-slate-200">
+          <div className="mb-3">
+            <p className="text-xs font-black uppercase tracking-wide text-teal-700">Company Information</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950">Basic Information</h2>
+          </div>
+          <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
             {content.registrationDetails.map((detail) => (
               <div
                 key={`${detail.label}-${detail.value}`}
-                className="grid gap-1 border-b border-slate-200 bg-white p-4 last:border-b-0 sm:grid-cols-[220px_1fr]"
+                className="grid gap-1 border-b border-slate-200 p-4 last:border-b-0 sm:grid-cols-[260px_1fr]"
               >
                 <p className="font-black text-slate-500">{detail.label}</p>
-                <p className="font-bold text-slate-950">{detail.value}</p>
+                <p className="break-words font-bold text-slate-950">{detail.value}</p>
               </div>
             ))}
           </div>
@@ -215,22 +236,27 @@ function RegistrationBlocks({ content }) {
 
       {content.directors?.length > 0 && (
         <section>
-          <h2 className="mb-3 text-xl font-black text-slate-950">Director Information</h2>
+          <div className="mb-3">
+            <p className="text-xs font-black uppercase tracking-wide text-teal-700">Directors & Key Managerial Personnel</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950">Current Directors</h2>
+          </div>
           <div className="overflow-x-auto rounded-md border border-slate-200">
-            <table className="w-full min-w-[620px] text-left text-sm">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-slate-950 text-white">
                 <tr>
+                  <th className="px-4 py-3">DIN</th>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Designation</th>
-                  <th className="px-4 py-3">DIN</th>
+                  <th className="px-4 py-3">Appointment Date</th>
                 </tr>
               </thead>
               <tbody>
                 {content.directors.map((director, index) => (
                   <tr key={`${director.name}-${index}`} className="border-t border-slate-200 bg-white">
+                    <td className="px-4 py-3 font-bold text-slate-950">{director.din}</td>
                     <td className="px-4 py-3 font-bold text-slate-950">{director.name}</td>
                     <td className="px-4 py-3 text-slate-700">{director.designation}</td>
-                    <td className="px-4 py-3 text-slate-700">{director.din}</td>
+                    <td className="px-4 py-3 text-slate-700">{director.appointmentDate}</td>
                   </tr>
                 ))}
               </tbody>

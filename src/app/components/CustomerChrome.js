@@ -1,67 +1,19 @@
 "use client";
 
-import axios from "axios";
 import { motion } from "framer-motion";
-import { ArrowRight, Building2, ChevronDown, Factory, FileText, Layers3, Mail, Menu, Phone, Search, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, Building2, ChevronDown, Factory, FileText, Mail, Menu, Phone, Search, ShieldCheck, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { API_BASE, displayCategoryName, normalizeCategoryName } from "../lib/catalog";
+import { useState } from "react";
+import { channelPartners } from "../lib/channelPartners";
 
-export function CustomerNavbar({ searchQuery = "", onSearchChange, categories = [], products = [] }) {
+export function CustomerNavbar({ searchQuery = "", onSearchChange }) {
   const [open, setOpen] = useState(false);
-  const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
+  const [mobilePartnersOpen, setMobilePartnersOpen] = useState(false);
   const [mobileAboutOpen, setMobileAboutOpen] = useState(false);
-  const [menuCategories, setMenuCategories] = useState([]);
-  const menuPreviewLimit = 3;
-
-  useEffect(() => {
-    const loadProductMenu = async () => {
-      try {
-        const response = await axios.get(`${API_BASE}/api/products-menu`);
-        if (Array.isArray(response.data.categories)) setMenuCategories(response.data.categories);
-      } catch (error) {
-        console.error("Unable to load product menu:", error);
-      }
-    };
-
-    loadProductMenu();
-  }, []);
-
-  const fallbackGroupedProducts = useMemo(() => {
-    const groups = new Map();
-
-    categories.forEach((category) => {
-      groups.set(category.key, { key: category.key, name: category.name, products: [] });
-    });
-
-    products.forEach((product) => {
-      const key = normalizeCategoryName(product.category);
-      if (!key) return;
-
-      if (!groups.has(key)) {
-        groups.set(key, { key, name: displayCategoryName(product.category), products: [] });
-      }
-
-      groups.get(key).products.push(product);
-    });
-
-    return [...groups.values()]
-      .filter((group) => group.products.length > 0)
-      .map((group) => ({ ...group, totalCount: group.products.length }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [categories, products]);
-
-  const groupedProducts = (menuCategories.length > 0 ? menuCategories : fallbackGroupedProducts)
-    .filter((category) => Array.isArray(category.products) && category.products.length > 0)
-    .map((category) => ({
-      ...category,
-      totalCount: category.totalCount || category.count || category.products.length,
-      products: category.products.slice(0, menuPreviewLimit),
-    }));
 
   const closeMobileMenu = () => {
     setOpen(false);
-    setMobileProductsOpen(false);
+    setMobilePartnersOpen(false);
     setMobileAboutOpen(false);
   };
 
@@ -89,44 +41,10 @@ export function CustomerNavbar({ searchQuery = "", onSearchChange, categories = 
           </label>
         </div>
 
-        <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-700 md:flex">
-          <div className="group relative">
-            <Link href="/#products" className="inline-flex items-center gap-1 py-3 hover:text-teal-700">
-              Products <ChevronDown className="h-4 w-4 transition duration-200 group-hover:rotate-180" />
-            </Link>
-            <div className="invisible absolute right-0 top-full w-[min(860px,calc(100vw-32px))] translate-y-3 opacity-0 transition-all duration-200 ease-out group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-              <div className="rounded-md border border-slate-200 bg-white p-2 text-slate-900 shadow-2xl">
-                <div className="mb-2 flex items-center justify-between border-b border-slate-100 px-1.5 pb-2">
-                  <div className="flex items-center gap-2 text-sm font-black text-slate-950">
-                    <Layers3 className="h-4 w-4 text-teal-700" /> Products by Category
-                  </div>
-                  <Link href="/customer/customervisit" className="text-xs font-black uppercase tracking-wide text-teal-700 hover:text-teal-900">View all</Link>
-                </div>
-                <div className="grid max-h-[460px] gap-1.5 overflow-y-auto p-1 lg:grid-cols-4">
-                  {groupedProducts.length > 0 ? groupedProducts.map((category) => (
-                    <div key={category.key} className="rounded-md border border-slate-100 bg-slate-50 p-2 transition hover:border-teal-200 hover:bg-teal-50/50">
-                      <Link href={`/customer/customervisit?category=${encodeURIComponent(category.key)}`} className="flex items-center justify-between gap-2 truncate text-xs font-black text-slate-950 hover:text-teal-800">
-                        <span className="truncate">{category.name}</span>
-                        <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-black text-slate-500">{category.totalCount}</span>
-                      </Link>
-                      <div className="mt-1.5 grid gap-1">
-                        {category.products.map((product) => (
-                          <Link key={product._id} href={`/customer/customervisit?productId=${product._id}`} className="rounded-sm px-1.5 py-1 transition hover:bg-white hover:shadow-sm">
-                            <span className="line-clamp-1 text-[11px] font-bold leading-4 text-slate-700">{product.title}</span>
-                          </Link>
-                        ))}
-                        <Link href={`/customer/customervisit?category=${encodeURIComponent(category.key)}`} className="mt-1 rounded-sm px-1.5 py-1 text-[11px] font-black text-teal-700 hover:bg-white hover:text-teal-900">
-                          Show more
-                        </Link>
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="col-span-3 rounded-md border border-dashed border-slate-300 p-6 text-center text-sm font-bold text-slate-500">Products will appear after catalog data loads.</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+        <nav className="hidden items-center gap-5 text-sm font-semibold text-slate-700 md:flex">
+          <Link href="/" className="inline-flex items-center py-3 hover:text-teal-700">
+            Home
+          </Link>
           <div className="group relative">
             <Link href="/about-us/company" className="inline-flex items-center gap-1 py-3 hover:text-teal-700">
               About Us <ChevronDown className="h-4 w-4 transition duration-200 group-hover:rotate-180" />
@@ -142,8 +60,25 @@ export function CustomerNavbar({ searchQuery = "", onSearchChange, categories = 
               </div>
             </div>
           </div>
-          <Link href="/customer/customervisit" className="inline-flex items-center gap-2 rounded-md bg-teal-700 px-4 py-2.5 text-white hover:bg-teal-800">
-            Send Inquiry <ArrowRight className="h-4 w-4" />
+          <div className="group relative">
+            <Link href="/channel-partners" className="inline-flex items-center gap-1 py-3 hover:text-teal-700">
+              Channel Partners <ChevronDown className="h-4 w-4 transition duration-200 group-hover:rotate-180" />
+            </Link>
+            <div className="invisible absolute right-0 top-full w-72 translate-y-3 opacity-0 transition-all duration-200 ease-out group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+              <div className="rounded-md border border-slate-200 bg-white p-2 shadow-2xl">
+                {channelPartners.map((partner) => (
+                  <Link key={partner.slug} href={`/channel-partners/${partner.slug}`} className="flex items-center gap-3 rounded-md px-3 py-3 text-slate-700 hover:bg-teal-50 hover:text-teal-800">
+                    <Building2 className="h-4 w-4" /> {partner.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+          <Link href="/service-support" className="inline-flex items-center py-3 hover:text-teal-700">
+            Service & Support
+          </Link>
+          <Link href="/solutions" className="inline-flex items-center py-3 hover:text-teal-700">
+            Solutions
           </Link>
         </nav>
 
@@ -167,27 +102,7 @@ export function CustomerNavbar({ searchQuery = "", onSearchChange, categories = 
       {open && (
         <div className="border-t border-slate-200 bg-white md:hidden">
           <div className="section-shell grid gap-2 py-4 text-sm font-semibold text-slate-700">
-            <button onClick={() => setMobileProductsOpen(!mobileProductsOpen)} className="flex items-center justify-between py-2 text-left">
-              Products <ChevronDown className={`h-4 w-4 transition ${mobileProductsOpen ? "rotate-180" : ""}`} />
-            </button>
-            {mobileProductsOpen && (
-              <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
-                {groupedProducts.map((category) => (
-                  <details key={category.key} className="rounded-md bg-white px-3 py-2">
-                    <summary className="cursor-pointer font-black text-slate-900">{category.name}</summary>
-                    <div className="mt-2 grid gap-2 pl-2">
-                      <Link onClick={closeMobileMenu} href={`/customer/customervisit?category=${encodeURIComponent(category.key)}`} className="text-teal-700">View category</Link>
-                      {category.products.slice(0, menuPreviewLimit).map((product) => (
-                        <Link key={product._id} onClick={closeMobileMenu} href={`/customer/customervisit?productId=${product._id}`} className="line-clamp-1 text-slate-500">
-                          {product.title}
-                        </Link>
-                      ))}
-                      <Link onClick={closeMobileMenu} href={`/customer/customervisit?category=${encodeURIComponent(category.key)}`} className="font-black text-teal-700">Show more</Link>
-                    </div>
-                  </details>
-                ))}
-              </div>
-            )}
+            <Link onClick={closeMobileMenu} href="/" className="py-2">Home</Link>
             <button onClick={() => setMobileAboutOpen(!mobileAboutOpen)} className="flex items-center justify-between py-2 text-left">
               About Us <ChevronDown className={`h-4 w-4 transition ${mobileAboutOpen ? "rotate-180" : ""}`} />
             </button>
@@ -197,7 +112,18 @@ export function CustomerNavbar({ searchQuery = "", onSearchChange, categories = 
                 <Link onClick={closeMobileMenu} href="/about-us/registration-directors-info" className="py-2">Registration and Director Information</Link>
               </div>
             )}
-            <Link onClick={closeMobileMenu} href="/customer/customervisit" className="py-2">Send Inquiry</Link>
+            <button onClick={() => setMobilePartnersOpen(!mobilePartnersOpen)} className="flex items-center justify-between py-2 text-left">
+              Channel Partners <ChevronDown className={`h-4 w-4 transition ${mobilePartnersOpen ? "rotate-180" : ""}`} />
+            </button>
+            {mobilePartnersOpen && (
+              <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+                {channelPartners.map((partner) => (
+                  <Link key={partner.slug} onClick={closeMobileMenu} href={`/channel-partners/${partner.slug}`} className="py-2">{partner.name}</Link>
+                ))}
+              </div>
+            )}
+            <Link onClick={closeMobileMenu} href="/service-support" className="py-2">Service & Support</Link>
+            <Link onClick={closeMobileMenu} href="/solutions" className="py-2">Solutions</Link>
           </div>
         </div>
       )}
@@ -292,7 +218,8 @@ export function Footer({ companyInfo }) {
           <p className="mt-2 flex items-center gap-2 text-sm"><Phone className="h-4 w-4" /> Inquiry response within 24 hours</p>
         </div>
       </div>
-      <div className="border-t border-slate-800 py-4 text-center text-xs text-slate-500">© 2026 Loyalty Automation. Industrial B2B catalog.</div>
+      <div className="border-t border-slate-800 py-4 text-center text-xs text-slate-500">Copyright 2026 Loyalty Automation. Industrial B2B catalog.</div>
     </footer>
   );
 }
+

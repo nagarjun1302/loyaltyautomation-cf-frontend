@@ -40,7 +40,7 @@ export default function ProductCard({ product, onView, onInquiry, compact = fals
           {product.ProductBroucher && <FileText className="h-5 w-5 text-teal-700" aria-label="Brochure available" />}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <button onClick={onInquiry} className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-teal-700 px-3 py-2.5 text-sm font-bold text-white hover:bg-teal-800">
+          <button onClick={onInquiry} className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-[#21409a] px-3 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#00aeef]">
             <MessageSquare className="h-4 w-4" /> Inquiry
           </button>
           <button onClick={onView} className="focus-ring inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-800 hover:border-teal-300 hover:text-teal-800">

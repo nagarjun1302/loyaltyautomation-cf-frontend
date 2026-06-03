@@ -6,6 +6,26 @@ import { useEffect, useState } from "react";
 import AdminShell from "../../components/AdminShell";
 import { API_BASE, uploadUrl } from "../../lib/catalog";
 
+const normalizeTradeAndMarketRows = (rows = []) => {
+  if (!Array.isArray(rows)) return [];
+
+  return rows.filter((row) => String(row?.label || "").trim().toLowerCase() !== "major market");
+};
+
+const normalizeStatutoryProfileRows = (rows = []) => {
+  if (!Array.isArray(rows)) return [];
+
+  return rows.map((row) => {
+    const label = String(row?.label || "").trim();
+    return {
+      ...row,
+      label: label.toLowerCase() === "pan no." ? "Tan No." : row.label,
+    };
+  });
+};
+
+const rowsOrDefault = (rows, fallback) => (rows.length ? rows : fallback);
+
 const initialFormData = {
   annualTurnover: "",
   legalStatus: "",
@@ -17,8 +37,21 @@ const initialFormData = {
   aboutUs: "",
   additionalBusiness: "",
   team: "",
-  tradeMarket: "",
   exportCountries: "",
+  tradeAndMarket: [
+    { label: "Export Percentage", value: "" },
+  ],
+  statutoryProfile: [
+    { label: "GST No.", value: "" },
+    { label: "CIN No.", value: "" },
+    { label: "Banker", value: "" },
+    { label: "DGFT / IE Code", value: "" },
+    { label: "Tan No.", value: "" },
+  ],
+  packagingPaymentShipment: [
+    { label: "Payment Mode", value: "" },
+    { label: "Shipment Mode", value: "" },
+  ],
   fields: [],
 };
 
@@ -30,7 +63,6 @@ const fields = [
   ["companyCEO", "Company CEO"],
   ["natureOfBusiness", "Nature of Business"],
   ["majorMarket", "Major Market"],
-  ["tradeMarket", "Trade Market"],
   ["exportCountries", "Export Countries (comma separated)"],
 ];
 
@@ -59,6 +91,9 @@ export default function CompanyInfoPage() {
         const latest = Array.isArray(response.data) ? response.data[response.data.length - 1] : null;
         if (!latest) return;
 
+        const tradeAndMarket = normalizeTradeAndMarketRows(latest.tradeAndMarket);
+        const statutoryProfile = normalizeStatutoryProfileRows(latest.statutoryProfile);
+
         setCompanyId(latest._id);
         setExistingPartners(latest.partners || []);
         setFormData({
@@ -72,8 +107,10 @@ export default function CompanyInfoPage() {
           aboutUs: latest.aboutUs || "",
           additionalBusiness: latest.additionalBusiness || "",
           team: latest.team || "",
-          tradeMarket: latest.tradeMarket || "",
           exportCountries: Array.isArray(latest.exportCountries) ? latest.exportCountries.join(", ") : "",
+          tradeAndMarket: rowsOrDefault(tradeAndMarket, initialFormData.tradeAndMarket),
+          statutoryProfile: rowsOrDefault(statutoryProfile, initialFormData.statutoryProfile),
+          packagingPaymentShipment: latest.packagingPaymentShipment?.length ? latest.packagingPaymentShipment : initialFormData.packagingPaymentShipment,
           fields: latest.fields || [],
         });
       } catch (error) {
@@ -134,8 +171,14 @@ export default function CompanyInfoPage() {
     setLoading(true);
     setMessage(null);
     const form = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key === "fields") form.append(key, JSON.stringify(value));
+    const payload = {
+      ...formData,
+      tradeAndMarket: normalizeTradeAndMarketRows(formData.tradeAndMarket),
+      statutoryProfile: normalizeStatutoryProfileRows(formData.statutoryProfile),
+    };
+
+    Object.entries(payload).forEach(([key, value]) => {
+      if (["fields", "tradeAndMarket", "statutoryProfile", "packagingPaymentShipment"].includes(key)) form.append(key, JSON.stringify(value));
       else form.append(key, value);
     });
     files.forEach((file) => form.append("partners", file));
@@ -158,9 +201,9 @@ export default function CompanyInfoPage() {
   };
 
   return (
-    <AdminShell title="Company Info" subtitle="Edit public company profile, custom fields, market details and partner logos.">
-      <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1fr_380px]">
-        <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <AdminShell title="Company Info" subtitle="Edit public company profile, market details, statutory data and partner logos.">
+      <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid min-w-0 gap-6">
           {message && (
             <div className={`mb-4 rounded-md px-4 py-3 text-sm font-bold ${message.type === "success" ? "border border-green-200 bg-green-50 text-green-700" : "border border-red-200 bg-red-50 text-red-700"}`}>
               {message.text}
@@ -168,19 +211,45 @@ export default function CompanyInfoPage() {
           )}
           {initialLoading && <div className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">Loading existing company information...</div>}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {fields.map(([name, label]) => (
-              <Field key={name} label={label} value={formData[name]} onChange={(value) => setFormData({ ...formData, [name]: value })} />
-            ))}
+          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <SectionHeader title="Basic Information" />
+            <div className="grid gap-4 md:grid-cols-2">
+              {fields.map(([name, label]) => (
+                <Field key={name} label={label} value={formData[name]} onChange={(value) => setFormData({ ...formData, [name]: value })} />
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <SectionHeader title="Company Details" />
+            <div className="grid gap-4">
+              {textAreas.map(([name, label]) => (
+                <TextArea key={name} label={label} value={formData[name]} onChange={(value) => setFormData({ ...formData, [name]: value })} />
+              ))}
+            </div>
+          </section>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <EditableRows
+              title="Trade & Market"
+              rows={formData.tradeAndMarket}
+              onChange={(rows) => setFormData({ ...formData, tradeAndMarket: normalizeTradeAndMarketRows(rows) })}
+            />
+            <EditableRows
+              title="Statutory Profile"
+              rows={formData.statutoryProfile}
+              onChange={(rows) => setFormData({ ...formData, statutoryProfile: normalizeStatutoryProfileRows(rows) })}
+            />
+            <div className="lg:col-span-2">
+              <EditableRows
+                title="Packaging/Payment and Shipment Details"
+                rows={formData.packagingPaymentShipment}
+                onChange={(rows) => setFormData({ ...formData, packagingPaymentShipment: rows })}
+              />
+            </div>
           </div>
 
-          <div className="mt-4 grid gap-4">
-            {textAreas.map(([name, label]) => (
-              <TextArea key={name} label={label} value={formData[name]} onChange={(value) => setFormData({ ...formData, [name]: value })} />
-            ))}
-          </div>
-
-          <section className="mt-6 rounded-md border border-slate-200 bg-slate-50 p-4">
+          <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="font-black text-slate-950">Custom Company Fields</h2>
@@ -212,9 +281,9 @@ export default function CompanyInfoPage() {
               ))}
             </div>
           </section>
-        </section>
+        </div>
 
-        <aside className="h-fit rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <aside className="h-fit rounded-md border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-28">
           <h2 className="text-xl font-black text-slate-950">Partner Images</h2>
           <p className="mt-1 text-sm text-slate-500">Upload up to 5 partner or brand logos. Existing logos stay unless new ones are uploaded.</p>
           {fileError && <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{fileError}</div>}
@@ -260,6 +329,14 @@ export default function CompanyInfoPage() {
   );
 }
 
+function SectionHeader({ title }) {
+  return (
+    <div className="mb-4 border-b border-slate-100 pb-3">
+      <h2 className="font-black text-slate-950">{title}</h2>
+    </div>
+  );
+}
+
 function Field({ label, value, onChange }) {
   return (
     <div>
@@ -275,5 +352,43 @@ function TextArea({ label, value, onChange }) {
       <label className="mb-2 block text-sm font-bold text-slate-700">{label}</label>
       <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={4} className="focus-ring w-full resize-y rounded-md border border-slate-200 p-3 text-slate-900" />
     </div>
+  );
+}
+
+function EditableRows({ title, rows, onChange }) {
+  const updateRow = (index, key, value) => {
+    onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: value } : row)));
+  };
+
+  const addRow = () => {
+    onChange([...(rows || []), { label: "", value: "" }]);
+  };
+
+  const deleteRow = (index) => {
+    onChange(rows.filter((_, rowIndex) => rowIndex !== index));
+  };
+
+  return (
+    <section className="rounded-md border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="font-black text-slate-950">{title}</h2>
+        <button type="button" onClick={addRow} className="rounded-md bg-slate-950 px-3 py-2 text-xs font-black text-white hover:bg-slate-800">
+          Add
+        </button>
+      </div>
+      <div className="grid gap-3">
+        {(rows || []).map((row, index) => (
+          <div key={index} className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
+            <input value={row.label || ""} onChange={(event) => updateRow(index, "label", event.target.value)} placeholder="Label" className="focus-ring h-10 rounded-md border border-slate-200 px-3 text-sm" />
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <input value={row.value || ""} onChange={(event) => updateRow(index, "value", event.target.value)} placeholder="Value" className="focus-ring h-10 rounded-md border border-slate-200 px-3 text-sm" />
+              <button type="button" onClick={() => deleteRow(index)} className="rounded-md border border-red-200 px-3 text-red-700 hover:bg-red-50" aria-label={`Delete ${title} row`}>
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

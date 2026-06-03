@@ -133,7 +133,7 @@ export default function AboutUsAdminPage() {
           </div>
         </aside>
 
-        <form onSubmit={saveContent} className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <form onSubmit={saveContent} className="grid gap-5">
           {message && <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">{message}</div>}
           {error && <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
 
@@ -141,15 +141,19 @@ export default function AboutUsAdminPage() {
             <div className="rounded-md border border-slate-200 bg-slate-50 p-8 text-center font-bold text-slate-500">Loading content...</div>
           ) : (
             <div className="grid gap-5">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Page Title" value={form.title} onChange={(value) => updateForm("title", value)} required />
-                <Field label="Subtitle" value={form.subtitle} onChange={(value) => updateForm("subtitle", value)} />
-                <Field label="Hero Image URL" value={form.imageUrl} onChange={(value) => updateForm("imageUrl", value)} />
-                <Field label="Secondary Image URL" value={form.secondaryImageUrl} onChange={(value) => updateForm("secondaryImageUrl", value)} />
-              </div>
+              <SectionCard title={isRegistration ? "Registration Page Content" : "Page Content"}>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Page Title" value={form.title} onChange={(value) => updateForm("title", value)} required />
+                  <Field label="Subtitle" value={form.subtitle} onChange={(value) => updateForm("subtitle", value)} />
+                  <Field label="Hero Image URL" value={form.imageUrl} onChange={(value) => updateForm("imageUrl", value)} />
+                  <Field label="Secondary Image URL" value={form.secondaryImageUrl} onChange={(value) => updateForm("secondaryImageUrl", value)} />
+                </div>
 
-              <TextArea label="Short Description" value={form.description} onChange={(value) => updateForm("description", value)} rows={3} />
-              <TextArea label="Main Content" value={form.content} onChange={(value) => updateForm("content", value)} rows={6} />
+                <div className="mt-4 grid gap-4">
+                  <TextArea label="Short Description" value={form.description} onChange={(value) => updateForm("description", value)} rows={3} />
+                  <TextArea label="Main Content" value={form.content} onChange={(value) => updateForm("content", value)} rows={5} />
+                </div>
+              </SectionCard>
 
               {!isRegistration && (
                 <>
@@ -160,19 +164,32 @@ export default function AboutUsAdminPage() {
 
               {isRegistration && (
                 <>
-                  <PairEditor title="Registration Details" value={form.registrationDetails} onChange={(value) => updateForm("registrationDetails", value)} />
+                  <RegistrationDetailsEditor value={form.registrationDetails} onChange={(value) => updateForm("registrationDetails", value)} />
                   <DirectorEditor value={form.directors} onChange={(value) => updateForm("directors", value)} />
                 </>
               )}
 
-              <button type="submit" disabled={saving} className="focus-ring inline-flex h-12 w-fit items-center gap-2 rounded-md bg-teal-700 px-5 font-black text-white hover:bg-teal-800 disabled:bg-slate-400">
+              <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-slate-100/95 py-4 backdrop-blur">
+                <button type="submit" disabled={saving} className="focus-ring inline-flex h-12 w-fit items-center gap-2 rounded-md bg-teal-700 px-5 font-black text-white hover:bg-teal-800 disabled:bg-slate-400">
                 <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Content"}
-              </button>
+                </button>
+              </div>
             </div>
           )}
         </form>
       </div>
     </AdminShell>
+  );
+}
+
+function SectionCard({ title, children }) {
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 border-b border-slate-100 pb-3">
+        <h3 className="font-black text-slate-950">{title}</h3>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -194,13 +211,45 @@ function TextArea({ label, value, onChange, rows }) {
   );
 }
 
+function RegistrationDetailsEditor({ value, onChange }) {
+  const rows = value || [];
+  const addRow = () => onChange([...rows, { label: "", value: "" }]);
+  const updateRow = (index, key, nextValue) => onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: nextValue } : row)));
+  const removeRow = (index) => onChange(rows.filter((_, rowIndex) => rowIndex !== index));
+
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-black text-slate-950">Basic Information</h3>
+          <p className="text-sm text-slate-500">Edit statutory registration rows shown on the public page.</p>
+        </div>
+        <button type="button" onClick={addRow} className="inline-flex w-fit items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-black text-white hover:bg-slate-800">
+          <Plus className="h-4 w-4" /> Add Row
+        </button>
+      </div>
+      <div className="grid gap-3">
+        {rows.map((row, index) => (
+          <div key={index} className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[240px_minmax(0,1fr)_44px]">
+            <Field label="Label" value={row.label || ""} onChange={(nextValue) => updateRow(index, "label", nextValue)} />
+            <TextArea label="Value" value={row.value || ""} onChange={(nextValue) => updateRow(index, "value", nextValue)} rows={2} />
+            <button type="button" onClick={() => removeRow(index)} className="mt-7 flex h-11 w-11 items-center justify-center rounded-md border border-red-200 bg-white text-red-700 hover:bg-red-50" aria-label="Remove registration detail">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ListEditor({ title, value, onChange }) {
   const addItem = () => onChange([...(value || []), ""]);
   const updateItem = (index, nextValue) => onChange(value.map((item, itemIndex) => (itemIndex === index ? nextValue : item)));
   const removeItem = (index) => onChange(value.filter((_, itemIndex) => itemIndex !== index));
 
   return (
-    <section className="rounded-md border border-slate-200 bg-slate-50 p-4">
+    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="font-black text-slate-950">{title}</h3>
         <button type="button" onClick={addItem} className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-black text-white hover:bg-slate-800">
@@ -228,7 +277,7 @@ function PairEditor({ title, value, onChange }) {
   const removeRow = (index) => onChange(rows.filter((_, rowIndex) => rowIndex !== index));
 
   return (
-    <section className="rounded-md border border-slate-200 bg-slate-50 p-4">
+    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="font-black text-slate-950">{title}</h3>
         <button type="button" onClick={addRow} className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-black text-white hover:bg-slate-800">
@@ -252,25 +301,29 @@ function PairEditor({ title, value, onChange }) {
 
 function DirectorEditor({ value, onChange }) {
   const rows = value || [];
-  const addRow = () => onChange([...rows, { name: "", designation: "", din: "" }]);
+  const addRow = () => onChange([...rows, { din: "", name: "", designation: "", appointmentDate: "" }]);
   const updateRow = (index, key, nextValue) => onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: nextValue } : row)));
   const removeRow = (index) => onChange(rows.filter((_, rowIndex) => rowIndex !== index));
 
   return (
-    <section className="rounded-md border border-slate-200 bg-slate-50 p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="font-black text-slate-950">Director Information</h3>
-        <button type="button" onClick={addRow} className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-black text-white hover:bg-slate-800">
-          <Plus className="h-4 w-4" /> Add
+    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-black text-slate-950">Current Directors</h3>
+          <p className="text-sm text-slate-500">DIN, name, designation and appointment date shown in the directors table.</p>
+        </div>
+        <button type="button" onClick={addRow} className="inline-flex w-fit items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-black text-white hover:bg-slate-800">
+          <Plus className="h-4 w-4" /> Add Director
         </button>
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-3">
         {rows.map((row, index) => (
-          <div key={index} className="grid gap-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
-            <input value={row.name || ""} onChange={(event) => updateRow(index, "name", event.target.value)} placeholder="Name" className="focus-ring h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" />
-            <input value={row.designation || ""} onChange={(event) => updateRow(index, "designation", event.target.value)} placeholder="Designation" className="focus-ring h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" />
-            <input value={row.din || ""} onChange={(event) => updateRow(index, "din", event.target.value)} placeholder="DIN" className="focus-ring h-11 rounded-md border border-slate-200 bg-white px-3 text-sm" />
-            <button type="button" onClick={() => removeRow(index)} className="rounded-md border border-red-200 bg-white px-3 text-red-700 hover:bg-red-50" aria-label="Remove director">
+          <div key={index} className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 xl:grid-cols-[0.9fr_1.25fr_1fr_1fr_44px]">
+            <Field label="DIN" value={row.din || ""} onChange={(nextValue) => updateRow(index, "din", nextValue)} />
+            <Field label="Director Name" value={row.name || ""} onChange={(nextValue) => updateRow(index, "name", nextValue)} />
+            <Field label="Designation" value={row.designation || ""} onChange={(nextValue) => updateRow(index, "designation", nextValue)} />
+            <Field label="Appointment Date" value={row.appointmentDate || ""} onChange={(nextValue) => updateRow(index, "appointmentDate", nextValue)} />
+            <button type="button" onClick={() => removeRow(index)} className="mt-7 flex h-11 w-11 items-center justify-center rounded-md border border-red-200 bg-white text-red-700 hover:bg-red-50" aria-label="Remove director">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>

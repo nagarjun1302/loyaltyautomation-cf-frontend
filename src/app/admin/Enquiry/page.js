@@ -1,7 +1,7 @@
 "use client";
 
 import axios from "axios";
-import { Mail, Phone, Search } from "lucide-react";
+import { Mail, Phone, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import AdminShell from "../../components/AdminShell";
 import { formatPrice, uploadUrl } from "../../lib/catalog";
@@ -11,11 +11,12 @@ export default function EnquiryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [deletingId, setDeletingId] = useState("");
 
   useEffect(() => {
     const fetchSubmissions = async () => {
       try {
-        const response = await axios.get("https://server.loyaltyautomation.com/api/submissions", {
+        const response = await axios.get("http://localhost:5005/api/submissions", {
           headers: { "Content-Type": "multipart/form-data" },
           withCredentials: true,
         });
@@ -46,6 +47,24 @@ export default function EnquiryPage() {
         .some((field) => String(field).toLowerCase().includes(value))
     );
   }, [submissions, query]);
+
+  const handleDelete = async (submissionId) => {
+    const confirmed = window.confirm("Close and delete this enquiry?");
+    if (!confirmed) return;
+
+    setDeletingId(submissionId);
+    setError("");
+
+    try {
+      await axios.delete(`http://localhost:5005/api/submissions/${submissionId}`, { withCredentials: true });
+      setSubmissions((current) => current.filter((submission) => submission._id !== submissionId));
+    } catch (err) {
+      setError(err.response?.data?.message || "Error deleting enquiry.");
+      console.error(err);
+    } finally {
+      setDeletingId("");
+    }
+  };
 
   return (
     <AdminShell title="Enquiries" subtitle="Review customer inquiries submitted from product pages.">
@@ -83,6 +102,15 @@ export default function EnquiryPage() {
                   <p className="mt-2 flex items-center gap-2 text-sm text-slate-600"><Phone className="h-4 w-4" /> {submission.customerInfo?.phone || "N/A"}</p>
                   <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">Company</p>
                   <p className="font-bold text-slate-800">{submission.productInfo?.companyName || "Not specified"}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(submission._id)}
+                    disabled={deletingId === submission._id}
+                    className="focus-ring mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-red-200 bg-white px-3 py-2.5 text-sm font-black text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {deletingId === submission._id ? "Deleting..." : "Close enquiry"}
+                  </button>
                 </aside>
               </div>
               {(submission.customerInfo?.description || submission.productInfo?.additionalRequirements) && (

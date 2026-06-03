@@ -58,7 +58,7 @@ export default function ProductListPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await axios.get("https://server.loyaltyautomation.com/api/getproductslist", {
+      const response = await axios.get("http://localhost:5005/api/getproductslist", {
         headers: { "Content-Type": "multipart/form-data" },
         withCredentials: true,
       });
@@ -115,7 +115,7 @@ export default function ProductListPage() {
         config = { ...config, headers: { "Content-Type": "multipart/form-data" } };
       }
 
-      const response = await axios.put(`https://server.loyaltyautomation.com/api/update/${editProductId}`, payload, config);
+      const response = await axios.put(`http://localhost:5005/api/update/${editProductId}`, payload, config);
       if (response.status === 200) {
         setProducts((current) => current.map((product) => (product._id === editProductId ? response.data.product : product)));
         editableImagePreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
@@ -144,7 +144,7 @@ export default function ProductListPage() {
 
   const handleDelete = async (productId) => {
     try {
-      const response = await axios.delete(`https://server.loyaltyautomation.com/api/delete/${productId}`, { withCredentials: true });
+      const response = await axios.delete(`http://localhost:5005/api/delete/${productId}`, { withCredentials: true });
       if (response.status === 200) setProducts((current) => current.filter((product) => product._id !== productId));
     } catch (err) {
       console.error("Error deleting product", err);

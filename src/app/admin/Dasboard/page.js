@@ -14,8 +14,8 @@ export default function Dashboard() {
     const loadMetrics = async () => {
       try {
         const [products, enquiries] = await Promise.all([
-          axios.get("https://server.loyaltyautomation.com/api/getproductslist", { withCredentials: true }),
-          axios.get("https://server.loyaltyautomation.com/api/submissions", { withCredentials: true }),
+          axios.get("http://localhost:5005/api/getproductslist", { withCredentials: true }),
+          axios.get("http://localhost:5005/api/submissions", { withCredentials: true }),
         ]);
         if (Array.isArray(products.data.getproducts)) setProductCount(products.data.getproducts.length);
         if (Array.isArray(enquiries.data)) setEnquiryCount(enquiries.data.length);

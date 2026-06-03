@@ -6,16 +6,20 @@
 }
 
 :root {
-  --background: #f6f7f9;
-  --foreground: #17202a;
+  --background: #f5f9fc;
+  --foreground: #173f7a;
   --surface: #ffffff;
-  --ink: #17202a;
-  --muted: #657282;
-  --line: #dfe4ea;
-  --steel: #253545;
-  --teal: #007c89;
-  --amber: #f5a623;
-  --green: #18865b;
+  --ink: #173f7a;
+  --muted: #4f7294;
+  --line: #d7e7f2;
+  --steel: #1f4f90;
+  --brand-red: #ed1c24;
+  --brand-cyan: #00aeef;
+  --brand-blue: #21409a;
+  --brand-sky: #6ed8ff;
+  --teal: var(--brand-cyan);
+  --amber: var(--brand-red);
+  --green: #168a63;
 }
 
 body {
@@ -59,7 +63,39 @@ textarea {
 }
 
 .focus-ring:focus-visible {
-  box-shadow: 0 0 0 3px rgba(0, 124, 137, 0.22);
+  box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.3);
+}
+
+.text-slate-950,
+.text-slate-900,
+.text-slate-800 {
+  color: var(--brand-blue) !important;
+}
+
+.text-slate-700,
+.text-slate-600,
+.text-slate-500 {
+  color: var(--muted) !important;
+}
+
+.text-slate-400 {
+  color: #7fa5c4 !important;
+}
+
+.text-teal-900,
+.text-teal-800,
+.text-teal-700 {
+  color: var(--brand-red) !important;
+}
+
+.text-amber-300,
+.text-amber-700,
+.text-amber-800 {
+  color: var(--brand-cyan) !important;
+}
+
+.text-white {
+  color: #ffffff !important;
 }
 
 .scrollbar-thin::-webkit-scrollbar {

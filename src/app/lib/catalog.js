@@ -1,4 +1,4 @@
-export const API_BASE = "https://server.loyaltyautomation.com";
+export const API_BASE = "http://localhost:5005";
 
 export function uploadUrl(fileName) {
   if (!fileName) return "";

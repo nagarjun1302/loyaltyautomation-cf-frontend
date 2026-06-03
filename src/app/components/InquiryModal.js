@@ -29,7 +29,7 @@ export default function InquiryModal({ product, onClose }) {
     setSubmitting(true);
     setMessage("");
     try {
-      await axios.post("https://server.loyaltyautomation.com/api/submit", {
+      await axios.post("http://localhost:5005/api/submit", {
         customerInfo: {
           name: formData.name,
           email: formData.email,
@@ -115,7 +115,7 @@ export default function InquiryModal({ product, onClose }) {
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                   <button type="button" onClick={onClose} className="focus-ring rounded-md border border-slate-200 px-5 py-3 font-bold text-slate-700 hover:bg-slate-50">Cancel</button>
-                  <button disabled={submitting} type="submit" className="focus-ring rounded-md bg-teal-700 px-5 py-3 font-bold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-400">
+                  <button disabled={submitting} type="submit" className="focus-ring rounded-md bg-[#21409a] px-5 py-3 font-bold text-white hover:bg-[#00aeef] disabled:cursor-not-allowed disabled:bg-slate-400">
                     {submitting ? "Submitting..." : "Submit Inquiry"}
                   </button>
                 </div>
