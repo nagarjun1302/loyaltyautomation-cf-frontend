@@ -9,7 +9,7 @@ export const publicRoutes = [
   "/channel-partners",
   "/channel-partners/delta",
   "/channel-partners/motovario",
-  "/channel-partners/phoneix-contact",
+  "/channel-partners/phoenix-contact",
   "/channel-partners/schneider-electric",
   "/customer/customervisit",
   "/service-support",

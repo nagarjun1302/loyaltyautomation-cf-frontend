@@ -26,11 +26,11 @@ export const channelPartners = [
     products: [{ name: "AC Motors & Gear Boxes", image: "/partners/motovario/123.jpg" }],
   },
   {
-    name: "Phoneix Contact",
-    slug: "phoneix-contact",
+    name: "Phoenix Contact",
+    slug: "phoenix-contact",
     // eyebrow: "Channel Partners",
     title: "There are many variations of products",
-    description: "Phoneix Contact product categories listed by Loyalty Automation.",
+    description: "Phoenix Contact product categories listed by Loyalty Automation.",
     products: [
       { name: "Circular Connectors", image: "/partners/phoenix/circular connectors.jpg" },
       { name: "Controllers", image: "/partners/phoenix/controlers.jpg" },
