@@ -1,0 +1,14 @@
+
+> loyalfront@0.1.0 dev
+> next dev --turbopack --port 3002
+
+   ▲ Next.js 15.2.0 (Turbopack)
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.168.1:3002
+
+ ✓ Starting...
+ ✓ Ready in 1780ms
+ ○ Compiling /customer/customervisit ...
+ ✓ Compiled /customer/customervisit in 5.5s
+ GET /customer/customervisit 200 in 6089ms
+ GET / 200 in 6125ms

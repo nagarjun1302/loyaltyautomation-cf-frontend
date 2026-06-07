@@ -1,5 +1,8 @@
 import HomePage from "./HomePageClient";
 import { createMetadata } from "./lib/seo";
+import { getStorefrontData } from "./lib/storefrontData";
+
+export const dynamic = "force-static";
 
 export const metadata = createMetadata({
   title: "Loyalty Automation | Industrial Automation Products",
@@ -8,6 +11,8 @@ export const metadata = createMetadata({
   image: "/slides/1.jpg",
 });
 
-export default function Page() {
-  return <HomePage />;
+export default async function Page() {
+  const storefrontData = await getStorefrontData();
+
+  return <HomePage {...storefrontData} />;
 }

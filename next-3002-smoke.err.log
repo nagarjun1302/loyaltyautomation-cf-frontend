@@ -1,0 +1,12 @@
+Storefront fetch failed for /info/companyInfo: [TypeError: fetch failed] {
+  [cause]: [AggregateError: ] { code: 'ECONNREFUSED' }
+}
+Storefront fetch failed for /api/customerproductslist: [TypeError: fetch failed] {
+  [cause]: [AggregateError: ] { code: 'ECONNREFUSED' }
+}
+Storefront fetch failed for /info/companyInfo: [TypeError: fetch failed] {
+  [cause]: [AggregateError: ] { code: 'ECONNREFUSED' }
+}
+Storefront fetch failed for /api/customerproductslist: [TypeError: fetch failed] {
+  [cause]: [AggregateError: ] { code: 'ECONNREFUSED' }
+}

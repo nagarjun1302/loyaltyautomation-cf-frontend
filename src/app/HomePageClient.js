@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import { motion } from "framer-motion";
 import { ChevronRight, Filter, PackageSearch, Search, Settings2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -28,40 +27,14 @@ const homepageSlides = [
   },
 ];
 
-export default function HomePage() {
+export default function HomePage({ products: initialProducts = [], companyInfo: initialCompanyInfo = null }) {
   const router = useRouter();
-  const [products, setProducts] = useState([]);
-  const [companyInfo, setCompanyInfo] = useState(null);
+  const products = initialProducts;
+  const companyInfo = initialCompanyInfo;
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedInquiry, setSelectedInquiry] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [productResponse, companyResponse] = await Promise.all([
-          axios.get("http://localhost:5005/api/customerproductslist"),
-          axios.get("http://localhost:5005/info/companyInfo"),
-        ]);
-
-        if (Array.isArray(productResponse.data.getproduct)) {
-          setProducts(productResponse.data.getproduct);
-        }
-
-        if (Array.isArray(companyResponse.data) && companyResponse.data.length > 0) {
-          setCompanyInfo(companyResponse.data[companyResponse.data.length - 1]);
-        }
-      } catch (error) {
-        console.error("Error loading storefront data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -210,9 +183,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {loading ? (
-                <div className="rounded-md border border-slate-200 bg-white p-10 text-center font-bold text-slate-500">Loading catalog...</div>
-              ) : featuredProducts.length > 0 ? (
+              {featuredProducts.length > 0 ? (
                 <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                   {featuredProducts.map((product) => (
                     <ProductCard

@@ -1,55 +1,25 @@
 "use client";
 
-import axios from "axios";
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, FileText, MessageSquare, PackageSearch, PlayCircle, Search, SlidersHorizontal } from "lucide-react";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CustomerNavbar, Footer } from "../../components/CustomerChrome";
 import InquiryModal from "../../components/InquiryModal";
 import { formatPrice, normalizeCategoryName, productImages, productSpecs, uniqueCategories, uploadUrl } from "../../lib/catalog";
 
-export default function ProductVisitPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 p-8 text-center font-bold text-slate-600">Loading catalog...</div>}>
-      <ProductVisitContent />
-    </Suspense>
-  );
-}
-
-function ProductVisitContent() {
+export default function ProductVisitPage({ products = [], companyInfo = null }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [products, setProducts] = useState([]);
-  const [companyInfo, setCompanyInfo] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedProductId, setSelectedProductId] = useState("");
   const [expandedProductId, setExpandedProductId] = useState("");
   const [inquiryProduct, setInquiryProduct] = useState(null);
   const [activeImages, setActiveImages] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [productResponse, companyResponse] = await Promise.all([
-          axios.get("http://localhost:5005/api/customerproductslist"),
-          axios.get("http://localhost:5005/info/companyInfo"),
-        ]);
-        if (Array.isArray(productResponse.data.getproduct)) setProducts(productResponse.data.getproduct);
-        if (Array.isArray(companyResponse.data) && companyResponse.data[0]) setCompanyInfo(companyResponse.data[companyResponse.data.length - 1]);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
 
   const categories = useMemo(() => uniqueCategories(products), [products]);
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
     const categoryFromUrl = searchParams.get("category");
     const productIdFromUrl = searchParams.get("productId");
 
@@ -64,7 +34,7 @@ function ProductVisitContent() {
         if (productFromUrl.category && !categoryFromUrl) setSelectedCategory(normalizeCategoryName(productFromUrl.category));
       }
     }
-  }, [products, searchParams]);
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -231,9 +201,7 @@ function ProductVisitContent() {
               </div>
             </div>
 
-            {loading ? (
-              <div className="rounded-md border border-slate-200 bg-white p-10 text-center font-bold text-slate-500">Loading products...</div>
-            ) : filteredProducts.length > 0 ? (
+            {filteredProducts.length > 0 ? (
               <div className="grid gap-4">
                 {selectedProduct && (
                   <CatalogProductRow

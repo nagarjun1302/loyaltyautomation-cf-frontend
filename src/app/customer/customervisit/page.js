@@ -1,5 +1,8 @@
 import ProductVisitPage from "./ProductVisitPageClient";
 import { createMetadata } from "../../lib/seo";
+import { getStorefrontData } from "../../lib/storefrontData";
+
+export const dynamic = "force-static";
 
 export const metadata = createMetadata({
   title: "Industrial Product Catalog | Loyalty Automation",
@@ -7,6 +10,8 @@ export const metadata = createMetadata({
   path: "/customer/customervisit",
 });
 
-export default function Page() {
-  return <ProductVisitPage />;
+export default async function Page() {
+  const storefrontData = await getStorefrontData();
+
+  return <ProductVisitPage {...storefrontData} />;
 }
