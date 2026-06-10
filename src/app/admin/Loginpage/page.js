@@ -30,7 +30,7 @@ export default function LoginPage() {
       setUser({ email: "", password: "" });
     } catch (error) {
       console.error("Login error:", error);
-      setErrorMessage("Login failed. Please check your credentials.");
+      setErrorMessage(error.response?.data?.message || "Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
